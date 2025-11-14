@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -15,8 +16,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-// Client-side Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Client-side Supabase client (SSR-compatible)
+// This properly handles cookies for authentication
+export const supabase = createBrowserClient(supabaseUrl!, supabaseAnonKey!)
 
 // Server-side Supabase client (bypasses RLS)
 // Only create if service key is available

@@ -44,7 +44,8 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to login if accessing protected route without auth
   if (isProtectedPath && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const redirectUrl = new URL('/login', request.url)
+    return NextResponse.redirect(redirectUrl)
   }
 
   // Redirect to dashboard if logged in and accessing auth pages
@@ -52,7 +53,14 @@ export async function middleware(request: NextRequest) {
   const isAuthPath = authPaths.includes(request.nextUrl.pathname)
 
   if (isAuthPath && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    const redirectUrl = new URL('/dashboard', request.url)
+    // Preserve cookies when redirecting
+    const redirectResponse = NextResponse.redirect(redirectUrl)
+    // Copy cookies from the original response
+    response.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie)
+    })
+    return redirectResponse
   }
 
   return response

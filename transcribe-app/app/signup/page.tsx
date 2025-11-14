@@ -33,6 +33,8 @@ export default function Signup() {
       if (authError) throw authError
 
       if (authData.user) {
+        console.log('Signup successful:', authData.user.email)
+
         // Create user record in database
         const response = await fetch('/api/auth/signup', {
           method: 'POST',
@@ -49,12 +51,17 @@ export default function Signup() {
           throw new Error(data.error || 'Failed to create user')
         }
 
-        router.push('/dashboard')
+        // Give the session cookie time to be set
+        await new Promise(resolve => setTimeout(resolve, 100))
+
+        // Refresh the router to pick up the new session
         router.refresh()
+        // Navigate to dashboard
+        router.push('/dashboard')
       }
     } catch (err: any) {
+      console.error('Signup error:', err)
       setError(err.message || 'Failed to sign up')
-    } finally {
       setLoading(false)
     }
   }

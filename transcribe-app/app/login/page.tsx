@@ -25,11 +25,18 @@ export default function Login() {
 
       if (error) throw error
 
-      router.push('/dashboard')
+      console.log('Login successful:', data.user?.email)
+
+      // Give the session cookie time to be set
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Refresh the router to pick up the new session
       router.refresh()
+      // Navigate to dashboard
+      router.push('/dashboard')
     } catch (err: any) {
+      console.error('Login error:', err)
       setError(err.message || 'Failed to login')
-    } finally {
       setLoading(false)
     }
   }
