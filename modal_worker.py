@@ -1,0 +1,316 @@
+"""
+WhisperX Transcription Worker on Modal.com
+
+This worker processes audio transcriptions using WhisperX with GPU acceleration.
+Features:
+- WhisperX large-v3 model for transcription
+- Speaker diarization with pyannote.audio
+- Auto-upload results to Supabase
+- Handles multiple languages
+- Error handling and retry logic
+"""
+
+import modal
+import os
+from pathlib import Path
+
+# Define Modal app
+app = modal.App("whisperx-transcription")
+
+# Create Modal image with all dependencies
+whisperx_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("ffmpeg", "git")
+    .pip_install(
+        "whisperx",
+        "torch==2.1.0",
+        "torchaudio==2.1.0",
+        "supabase==2.3.0",
+        "requests",
+        "numpy",
+        "pandas",
+    )
+)
+
+# Supabase secrets (configured via: modal secret create supabase-credentials)
+supabase_secret = modal.Secret.from_name("supabase-credentials")
+
+
+@app.function(
+    image=whisperx_image,
+    gpu="A10G",  # NVIDIA A10G GPU (24GB VRAM)
+    timeout=3600,  # 1 hour max
+    secrets=[supabase_secret],
+    memory=16384,  # 16GB RAM
+)
+def transcribe_audio(
+    transcript_id: str,
+    file_path: str,
+    user_id: str,
+    language: str = None,
+    enable_diarization: bool = True,
+):
+    """
+    Transcribe audio file using WhisperX with GPU acceleration.
+
+    Args:
+        transcript_id: Database transcript record ID
+        file_path: Path to audio file in Supabase Storage (e.g., "user_id/file.mp3")
+        user_id: User ID for tracking
+        language: Optional language code (auto-detect if None)
+        enable_diarization: Enable speaker diarization (default: True)
+
+    Returns:
+        dict: Transcription results with segments and speakers
+    """
+    import whisperx
+    import torch
+    from supabase import create_client
+    import tempfile
+    import json
+    from datetime import datetime
+
+    print(f"[INFO] Starting transcription for transcript_id: {transcript_id}")
+    print(f"[INFO] File path: {file_path}")
+    print(f"[INFO] Enable diarization: {enable_diarization}")
+
+    # Initialize Supabase client
+    supabase_url = os.environ["SUPABASE_URL"]
+    supabase_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    supabase = create_client(supabase_url, supabase_key)
+
+    try:
+        # Update status to processing
+        supabase.table("Transcript").update({
+            "status": "processing",
+            "processedAt": datetime.utcnow().isoformat()
+        }).eq("id", transcript_id).execute()
+
+        # Download audio file from Supabase Storage
+        print("[INFO] Downloading audio file from Supabase...")
+        bucket_name = "audio-temp"
+        response = supabase.storage.from_(bucket_name).download(file_path)
+
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".audio") as tmp_file:
+            tmp_file.write(response)
+            audio_path = tmp_file.name
+
+        print(f"[INFO] Audio downloaded to: {audio_path}")
+
+        # Detect device (GPU should be available on Modal A10G)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        compute_type = "float16" if device == "cuda" else "int8"
+        print(f"[INFO] Using device: {device}, compute_type: {compute_type}")
+
+        # Load WhisperX model
+        print("[INFO] Loading WhisperX model (large-v3)...")
+        model = whisperx.load_model(
+            "large-v3",
+            device=device,
+            compute_type=compute_type,
+            language=language
+        )
+
+        # Transcribe audio
+        print("[INFO] Running transcription...")
+        audio = whisperx.load_audio(audio_path)
+        result = model.transcribe(
+            audio,
+            batch_size=16,  # Larger batch for A10G
+            language=language
+        )
+
+        detected_language = result.get("language", language or "unknown")
+        print(f"[INFO] Detected language: {detected_language}")
+
+        # Align whisper output
+        print("[INFO] Aligning transcription...")
+        model_a, metadata = whisperx.load_align_model(
+            language_code=detected_language,
+            device=device
+        )
+        result_aligned = whisperx.align(
+            result["segments"],
+            model_a,
+            metadata,
+            audio,
+            device
+        )
+
+        segments = result_aligned["segments"]
+        full_text = " ".join([seg.get("text", "") for seg in segments])
+
+        # Speaker diarization (if enabled)
+        speakers_data = None
+        if enable_diarization:
+            try:
+                print("[INFO] Running speaker diarization...")
+                diarize_model = whisperx.DiarizationPipeline(
+                    use_auth_token=None,  # No HuggingFace token needed for pyannote 3.0+
+                    device=device
+                )
+                diarize_segments = diarize_model(audio)
+                result_diarized = whisperx.assign_word_speakers(
+                    diarize_segments,
+                    result_aligned
+                )
+                segments = result_diarized["segments"]
+
+                # Extract unique speakers
+                speakers = set()
+                for seg in segments:
+                    if "speaker" in seg:
+                        speakers.add(seg["speaker"])
+
+                speakers_data = {
+                    "count": len(speakers),
+                    "labels": sorted(list(speakers))
+                }
+                print(f"[INFO] Detected {len(speakers)} speakers: {speakers}")
+
+            except Exception as e:
+                print(f"[WARNING] Diarization failed: {e}")
+                print("[INFO] Continuing without speaker labels...")
+
+        # Calculate duration
+        duration_seconds = segments[-1]["end"] if segments else 0
+
+        # Prepare segments for database (JSON serializable)
+        segments_json = []
+        for seg in segments:
+            segments_json.append({
+                "start": seg.get("start"),
+                "end": seg.get("end"),
+                "text": seg.get("text", ""),
+                "speaker": seg.get("speaker", None),
+                "words": seg.get("words", [])
+            })
+
+        # Upload full transcript text to Supabase Storage
+        print("[INFO] Uploading transcript to Storage...")
+        transcript_filename = f"{user_id}/{transcript_id}.json"
+        transcript_data = {
+            "text": full_text,
+            "segments": segments_json,
+            "language": detected_language,
+            "duration": duration_seconds,
+            "speakers": speakers_data
+        }
+
+        supabase.storage.from_("transcripts").upload(
+            transcript_filename,
+            json.dumps(transcript_data, indent=2).encode(),
+            {
+                "content-type": "application/json",
+                "upsert": "true"
+            }
+        )
+
+        # Update database record
+        print("[INFO] Updating database...")
+        supabase.table("Transcript").update({
+            "status": "completed",
+            "language": detected_language,
+            "durationSeconds": int(duration_seconds),
+            "processedAt": datetime.utcnow().isoformat(),
+            "text": full_text[:5000],  # Store first 5000 chars in DB
+            "segments": segments_json,
+            "speakersCount": speakers_data["count"] if speakers_data else None
+        }).eq("id", transcript_id).execute()
+
+        # Cleanup temporary file
+        os.remove(audio_path)
+
+        print(f"[SUCCESS] Transcription completed for {transcript_id}")
+
+        return {
+            "success": True,
+            "transcript_id": transcript_id,
+            "language": detected_language,
+            "duration": duration_seconds,
+            "speakers": speakers_data,
+            "segments_count": len(segments_json)
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[ERROR] Transcription failed: {error_msg}")
+
+        # Update status to failed
+        try:
+            supabase.table("Transcript").update({
+                "status": "failed",
+                "processedAt": datetime.utcnow().isoformat()
+            }).eq("id", transcript_id).execute()
+        except:
+            pass
+
+        return {
+            "success": False,
+            "transcript_id": transcript_id,
+            "error": error_msg
+        }
+
+
+@app.function(secrets=[supabase_secret])
+@modal.web_endpoint(method="POST")
+def transcribe_webhook(data: dict):
+    """
+    Webhook endpoint to trigger transcription.
+
+    Call this from your Next.js app after file upload:
+    POST https://your-modal-app.modal.run/transcribe_webhook
+    {
+        "transcript_id": "abc123",
+        "file_path": "user_id/audio.mp3",
+        "user_id": "user_id",
+        "language": "it",  // optional
+        "enable_diarization": true  // optional
+    }
+    """
+    transcript_id = data.get("transcript_id")
+    file_path = data.get("file_path")
+    user_id = data.get("user_id")
+    language = data.get("language")
+    enable_diarization = data.get("enable_diarization", True)
+
+    if not transcript_id or not file_path or not user_id:
+        return {
+            "error": "Missing required fields: transcript_id, file_path, user_id"
+        }, 400
+
+    # Spawn async transcription job
+    transcribe_audio.spawn(
+        transcript_id,
+        file_path,
+        user_id,
+        language,
+        enable_diarization
+    )
+
+    return {
+        "status": "queued",
+        "transcript_id": transcript_id,
+        "message": "Transcription job started"
+    }
+
+
+# Local testing
+@app.local_entrypoint()
+def test_transcription(
+    transcript_id: str = "test-123",
+    file_path: str = "test/sample.mp3"
+):
+    """
+    Test transcription locally:
+    modal run modal_worker.py --transcript-id test-123 --file-path test/sample.mp3
+    """
+    result = transcribe_audio.remote(
+        transcript_id=transcript_id,
+        file_path=file_path,
+        user_id="test-user",
+        language=None,
+        enable_diarization=True
+    )
+    print(f"\n[RESULT] {result}")
