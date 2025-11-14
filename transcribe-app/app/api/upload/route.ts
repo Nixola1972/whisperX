@@ -6,9 +6,12 @@ import { nanoid } from 'nanoid'
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('[DEBUG] Upload API called')
+
     // 1. Auth check
     const user = await requireAuth()
     const userId = user.id
+    console.log('[DEBUG] User authenticated:', userId)
 
     // 2. Get file from form data
     const formData = await req.formData()
@@ -17,6 +20,8 @@ export async function POST(req: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
+
+    console.log('[DEBUG] File received:', file.name, 'Size:', file.size, 'Type:', file.type)
 
     // 3. Validate file
     const maxSize = 100 * 1024 * 1024 // 100MB
@@ -50,6 +55,8 @@ export async function POST(req: NextRequest) {
     const fileName = `${nanoid()}.${fileExt}`
     const filePath = `${userId}/${fileName}`
 
+    console.log('[DEBUG] Uploading to Supabase Storage:', filePath)
+
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Storage not configured. Please set SUPABASE_SERVICE_ROLE_KEY in .env.local' },
@@ -77,6 +84,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    console.log('[DEBUG] File uploaded successfully to Supabase')
+
     // 5. Create transcript record in DB
     const transcript = await db.transcript.create({
       data: {
@@ -89,11 +98,30 @@ export async function POST(req: NextRequest) {
       }
     })
 
+    console.log('[DEBUG] Transcript record created:', transcript.id)
+
     // 6. Trigger Modal transcription (if configured)
+    console.log('[DEBUG] About to check Modal URL...')
     const modalUrl = process.env.MODAL_WEBHOOK_URL
+    console.log('[DEBUG] modalUrl value:', modalUrl)
+    console.log('[DEBUG] modalUrl type:', typeof modalUrl)
+    console.log('[DEBUG] modalUrl truthy?', !!modalUrl)
+
     if (modalUrl) {
+      console.log('[DEBUG] ✓ INSIDE if block - modalUrl is truthy')
       try {
+        console.log('========================================')
         console.log('Triggering Modal transcription for:', transcript.id)
+        console.log('Modal URL:', modalUrl)
+        console.log('Payload:', JSON.stringify({
+          transcript_id: transcript.id,
+          file_path: filePath,
+          user_id: userId,
+          language: null,
+          enable_diarization: true
+        }, null, 2))
+        console.log('========================================')
+
         const modalResponse = await fetch(modalUrl, {
           method: 'POST',
           headers: {
@@ -108,16 +136,21 @@ export async function POST(req: NextRequest) {
           })
         })
 
+        console.log('[DEBUG] Modal response status:', modalResponse.status)
+
         if (!modalResponse.ok) {
-          console.error('Modal webhook failed:', await modalResponse.text())
+          const errorText = await modalResponse.text()
+          console.error('Modal webhook failed with status', modalResponse.status, ':', errorText)
         } else {
-          console.log('Modal transcription queued successfully')
+          const responseData = await modalResponse.json()
+          console.log('✓ Modal transcription queued successfully:', responseData)
         }
       } catch (modalError) {
-        console.error('Failed to trigger Modal:', modalError)
+        console.error('Failed to trigger Modal (exception):', modalError)
         // Don't fail the upload if Modal call fails
       }
     } else {
+      console.log('[DEBUG] ✗ NOT inside if block - modalUrl is falsy')
       console.log('Modal webhook not configured - transcript will remain pending')
     }
 
