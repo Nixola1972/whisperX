@@ -252,7 +252,10 @@ def transcribe_audio(
         }
 
 
-@app.function(secrets=[supabase_secret])
+@app.function(
+    image=whisperx_image,
+    secrets=[supabase_secret]
+)
 @modal.asgi_app()
 def transcribe_webhook():
     """
