@@ -51,13 +51,8 @@ export default function Signup() {
           throw new Error(data.error || 'Failed to create user')
         }
 
-        // Give the session cookie time to be set
-        await new Promise(resolve => setTimeout(resolve, 100))
-
-        // Refresh the router to pick up the new session
-        router.refresh()
-        // Navigate to dashboard
-        router.push('/dashboard')
+        // Force a full page reload to ensure cookies are sent to middleware
+        window.location.href = '/dashboard'
       }
     } catch (err: any) {
       console.error('Signup error:', err)
