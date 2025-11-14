@@ -129,12 +129,25 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.*.local
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Next.js
+transcribe-app/.next/
+transcribe-app/out/
+transcribe-app/build/
+transcribe-app/node_modules/
+transcribe-app/.env.local
+transcribe-app/.env.*.local
+
+# Prisma
+transcribe-app/prisma/migrations/
 
 # Spyder project settings
 .spyderproject
