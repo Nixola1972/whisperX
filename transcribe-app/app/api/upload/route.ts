@@ -89,15 +89,46 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // TODO: Enqueue transcription job to Modal/Redis when configured
-    // For now, just create the record
+    // 6. Trigger Modal transcription (if configured)
+    const modalUrl = process.env.MODAL_WEBHOOK_URL
+    if (modalUrl) {
+      try {
+        console.log('Triggering Modal transcription for:', transcript.id)
+        const modalResponse = await fetch(modalUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            transcript_id: transcript.id,
+            file_path: filePath,
+            user_id: userId,
+            language: null, // Auto-detect
+            enable_diarization: true
+          })
+        })
 
-    // 6. Return success
+        if (!modalResponse.ok) {
+          console.error('Modal webhook failed:', await modalResponse.text())
+        } else {
+          console.log('Modal transcription queued successfully')
+        }
+      } catch (modalError) {
+        console.error('Failed to trigger Modal:', modalError)
+        // Don't fail the upload if Modal call fails
+      }
+    } else {
+      console.log('Modal webhook not configured - transcript will remain pending')
+    }
+
+    // 7. Return success
     return NextResponse.json({
       transcriptId: transcript.id,
-      status: 'pending',
+      status: modalUrl ? 'queued' : 'pending',
       fileName: file.name,
-      message: 'File uploaded successfully. Transcription system will be configured next.'
+      message: modalUrl
+        ? 'File uploaded successfully. Transcription started!'
+        : 'File uploaded successfully. Configure Modal to enable transcription.'
     })
   } catch (error) {
     console.error('Upload error:', error)

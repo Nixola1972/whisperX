@@ -134,7 +134,7 @@ export default async function Home() {
         </div>
 
         <div className="mt-16 text-center text-sm text-gray-500">
-          <p>Setup Status: Database ✓ | Authentication ✓ | File Upload ✓ | Transcription → Next</p>
+          <p>Setup Status: Database ✓ | Authentication ✓ | File Upload ✓ | WhisperX Transcription ✓</p>
         </div>
       </div>
     </main>

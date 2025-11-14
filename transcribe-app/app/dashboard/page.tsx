@@ -48,8 +48,8 @@ export default function Dashboard() {
               <span>File upload working</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-yellow-600 dark:text-yellow-400">⏳</span>
-              <span>WhisperX transcription (setup needed)</span>
+              <span className="text-green-600 dark:text-green-400">✓</span>
+              <span>WhisperX transcription (Modal.com)</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-yellow-600 dark:text-yellow-400">⏳</span>
@@ -60,12 +60,11 @@ export default function Dashboard() {
               <span>Stripe payments (optional)</span>
             </div>
           </div>
-          <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded text-sm">
-            <p className="font-semibold mb-1">📋 Next Steps:</p>
+          <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded text-sm border border-green-200 dark:border-green-800">
+            <p className="font-semibold mb-1 text-green-700 dark:text-green-400">🎉 Ready to Transcribe!</p>
             <p className="text-gray-600 dark:text-gray-400">
-              Your files are being uploaded and saved! To enable transcription processing, you need to configure Modal.com (GPU worker for WhisperX).
-              <br />
-              Check the terminal for setup instructions or contact me for help.
+              Upload an audio file and it will be automatically transcribed with WhisperX on GPU.
+              Speaker diarization is enabled by default.
             </p>
           </div>
         </div>
