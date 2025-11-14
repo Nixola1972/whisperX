@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 interface Transcript {
   id: string
@@ -21,11 +22,16 @@ export default function TranscriptsList({ refreshTrigger }: { refreshTrigger?: n
 
   const fetchTranscripts = async () => {
     try {
-      // For now, show mock data since we don't have auth yet
-      setTranscripts([])
-      setLoading(false)
+      const response = await fetch('/api/transcripts')
+      if (!response.ok) {
+        throw new Error('Failed to fetch transcripts')
+      }
+      const data = await response.json()
+      setTranscripts(data.transcripts || [])
     } catch (error) {
       console.error('Failed to fetch transcripts:', error)
+      setTranscripts([])
+    } finally {
       setLoading(false)
     }
   }
@@ -97,15 +103,16 @@ export default function TranscriptsList({ refreshTrigger }: { refreshTrigger?: n
               </div>
             </div>
             <div className="flex gap-2">
+              <Link
+                href={`/transcripts/${transcript.id}`}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                View
+              </Link>
               {transcript.status === 'completed' && (
-                <>
-                  <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    View
-                  </button>
-                  <button className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                    Export
-                  </button>
-                </>
+                <button className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                  Export
+                </button>
               )}
             </div>
           </div>
