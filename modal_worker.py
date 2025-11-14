@@ -285,26 +285,40 @@ def transcribe_webhook():
 
     @web_app.post("/")
     async def webhook(request: TranscribeRequest):
+        print(f"[WEBHOOK] Received request for transcript: {request.transcript_id}")
+        print(f"[WEBHOOK] File path: {request.file_path}")
+        print(f"[WEBHOOK] User ID: {request.user_id}")
+
         if not request.transcript_id or not request.file_path or not request.user_id:
             raise HTTPException(
                 status_code=400,
                 detail="Missing required fields: transcript_id, file_path, user_id"
             )
 
-        # Spawn async transcription job
-        transcribe_audio.spawn(
-            request.transcript_id,
-            request.file_path,
-            request.user_id,
-            request.language,
-            request.enable_diarization
-        )
+        try:
+            # Spawn async transcription job
+            print(f"[WEBHOOK] Spawning transcription job...")
+            call = transcribe_audio.spawn(
+                request.transcript_id,
+                request.file_path,
+                request.user_id,
+                request.language,
+                request.enable_diarization
+            )
+            print(f"[WEBHOOK] ✓ Transcription job spawned successfully: {call}")
 
-        return {
-            "status": "queued",
-            "transcript_id": request.transcript_id,
-            "message": "Transcription job started"
-        }
+            return {
+                "status": "queued",
+                "transcript_id": request.transcript_id,
+                "message": "Transcription job started",
+                "call_id": str(call.object_id) if hasattr(call, 'object_id') else None
+            }
+        except Exception as e:
+            print(f"[WEBHOOK ERROR] Failed to spawn job: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to start transcription: {str(e)}"
+            )
 
     return web_app
 
