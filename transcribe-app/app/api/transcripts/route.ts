@@ -22,7 +22,13 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ transcripts })
+    // Convert BigInt to Number for JSON serialization
+    const serializedTranscripts = transcripts.map(t => ({
+      ...t,
+      fileSize: t.fileSize ? Number(t.fileSize) : null,
+    }))
+
+    return NextResponse.json({ transcripts: serializedTranscripts })
   } catch (error: any) {
     console.error('List transcripts error:', error)
 

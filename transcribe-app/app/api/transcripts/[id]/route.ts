@@ -29,7 +29,13 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ transcript })
+    // Convert BigInt to Number for JSON serialization
+    const serializedTranscript = {
+      ...transcript,
+      fileSize: transcript.fileSize ? Number(transcript.fileSize) : null,
+    }
+
+    return NextResponse.json({ transcript: serializedTranscript })
   } catch (error: any) {
     console.error('Get transcript error:', error)
 
