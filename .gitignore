@@ -16,6 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# But allow Next.js lib folder
+!transcribe-app/lib/
 parts/
 sdist/
 var/
