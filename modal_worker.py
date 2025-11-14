@@ -26,6 +26,7 @@ whisperx_image = (
         "torch==2.1.0",
         "torchaudio==2.1.0",
         "supabase==2.3.0",
+        "fastapi",
         "requests",
         "numpy",
         "pandas",
@@ -254,13 +255,13 @@ def transcribe_audio(
 
 
 @app.function(secrets=[supabase_secret])
-@modal.web_endpoint(method="POST")
-def transcribe_webhook(data: dict):
+@modal.asgi_app()
+def transcribe_webhook():
     """
     Webhook endpoint to trigger transcription.
 
     Call this from your Next.js app after file upload:
-    POST https://your-modal-app.modal.run/transcribe_webhook
+    POST https://your-modal-app.modal.run
     {
         "transcript_id": "abc123",
         "file_path": "user_id/audio.mp3",
@@ -269,31 +270,42 @@ def transcribe_webhook(data: dict):
         "enable_diarization": true  // optional
     }
     """
-    transcript_id = data.get("transcript_id")
-    file_path = data.get("file_path")
-    user_id = data.get("user_id")
-    language = data.get("language")
-    enable_diarization = data.get("enable_diarization", True)
+    from fastapi import FastAPI, HTTPException
+    from pydantic import BaseModel
 
-    if not transcript_id or not file_path or not user_id:
+    web_app = FastAPI()
+
+    class TranscribeRequest(BaseModel):
+        transcript_id: str
+        file_path: str
+        user_id: str
+        language: str = None
+        enable_diarization: bool = True
+
+    @web_app.post("/")
+    async def webhook(request: TranscribeRequest):
+        if not request.transcript_id or not request.file_path or not request.user_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Missing required fields: transcript_id, file_path, user_id"
+            )
+
+        # Spawn async transcription job
+        transcribe_audio.spawn(
+            request.transcript_id,
+            request.file_path,
+            request.user_id,
+            request.language,
+            request.enable_diarization
+        )
+
         return {
-            "error": "Missing required fields: transcript_id, file_path, user_id"
-        }, 400
+            "status": "queued",
+            "transcript_id": request.transcript_id,
+            "message": "Transcription job started"
+        }
 
-    # Spawn async transcription job
-    transcribe_audio.spawn(
-        transcript_id,
-        file_path,
-        user_id,
-        language,
-        enable_diarization
-    )
-
-    return {
-        "status": "queued",
-        "transcript_id": transcript_id,
-        "message": "Transcription job started"
-    }
+    return web_app
 
 
 # Local testing
