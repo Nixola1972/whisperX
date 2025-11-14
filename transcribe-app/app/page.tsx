@@ -1,6 +1,9 @@
 import Link from 'next/link'
+import { getUser } from '@/lib/auth'
 
-export default function Home() {
+export default async function Home() {
+  const user = await getUser()
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-center font-mono text-sm">
@@ -12,12 +15,29 @@ export default function Home() {
             AI-Powered Audio Transcription with Speaker Diarization
           </p>
           <div className="flex gap-4 justify-center">
-            <Link
-              href="/dashboard"
-              className="rounded-lg bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Get Started
-            </Link>
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="rounded-lg bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/signup"
+                  className="rounded-lg bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Sign Up
+                </Link>
+                <Link
+                  href="/login"
+                  className="rounded-lg border border-gray-300 dark:border-gray-700 px-6 py-3 font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Login
+                </Link>
+              </>
+            )}
             <Link
               href="/pricing"
               className="rounded-lg border border-gray-300 dark:border-gray-700 px-6 py-3 font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -114,7 +134,7 @@ export default function Home() {
         </div>
 
         <div className="mt-16 text-center text-sm text-gray-500">
-          <p>Setup Status: Database ✓ | Authentication → Next | Storage → Next</p>
+          <p>Setup Status: Database ✓ | Authentication ✓ | File Upload ✓ | Transcription → Next</p>
         </div>
       </div>
     </main>

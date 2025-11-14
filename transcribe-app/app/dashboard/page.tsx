@@ -33,7 +33,7 @@ export default function Dashboard() {
 
         {/* Setup Status Banner */}
         <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-6 mb-8">
-          <h2 className="text-lg font-semibold mb-3">⚙️ Setup Status</h2>
+          <h2 className="text-lg font-semibold mb-3">⚙️ System Status</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-green-600 dark:text-green-400">✓</span>
@@ -41,27 +41,32 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-green-600 dark:text-green-400">✓</span>
-              <span>Storage buckets created</span>
+              <span>Authentication active</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-green-600 dark:text-green-400">✓</span>
-              <span>API keys configured</span>
+              <span>File upload working</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-yellow-600 dark:text-yellow-400">→</span>
-              <span>Authentication (coming next)</span>
+              <span className="text-yellow-600 dark:text-yellow-400">⏳</span>
+              <span>WhisperX transcription (setup needed)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-yellow-600 dark:text-yellow-400">→</span>
-              <span>WhisperX integration (Modal.com)</span>
+              <span className="text-yellow-600 dark:text-yellow-400">⏳</span>
+              <span>AI features (Gemini - optional)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-yellow-600 dark:text-yellow-400">→</span>
-              <span>Stripe payments</span>
+              <span className="text-yellow-600 dark:text-yellow-400">⏳</span>
+              <span>Stripe payments (optional)</span>
             </div>
           </div>
-          <div className="mt-4 text-xs text-gray-600 dark:text-gray-400">
-            Note: File upload is ready, but transcription requires Modal.com configuration
+          <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded text-sm">
+            <p className="font-semibold mb-1">📋 Next Steps:</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Your files are being uploaded and saved! To enable transcription processing, you need to configure Modal.com (GPU worker for WhisperX).
+              <br />
+              Check the terminal for setup instructions or contact me for help.
+            </p>
           </div>
         </div>
 
