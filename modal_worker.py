@@ -22,14 +22,12 @@ whisperx_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg", "git")
     .pip_install(
-        "whisperx",
-        "torch==2.1.0",
-        "torchaudio==2.1.0",
-        "supabase==2.3.0",
+        "torch",
+        "torchaudio",
+        "git+https://github.com/m-bain/whisperX.git",
+        "supabase",
         "fastapi",
-        "requests",
-        "numpy",
-        "pandas",
+        "pydantic",
     )
 )
 
