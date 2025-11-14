@@ -280,7 +280,7 @@ def transcribe_webhook():
         transcript_id: str
         file_path: str
         user_id: str
-        language: str = None
+        language: str | None = None
         enable_diarization: bool = True
 
     @web_app.post("/")
