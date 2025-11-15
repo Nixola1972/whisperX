@@ -18,15 +18,28 @@ from pathlib import Path
 app = modal.App("whisperx-transcription")
 
 # Create Modal image with all dependencies
-# Use WhisperX 3.3.2 (stable version with CUDNN fix)
-# Let pip auto-resolve PyTorch versions for compatibility with pyannote-audio
+# SOLUZIONE 1: Combinazione stabile PyTorch 2.3.1 + ctranslate2 4.4.0 + cuDNN 8
+# Usa immagine NVIDIA CUDA base invece di debian_slim
+cuda_version = "12.1.1"
+flavor = "cudnn8-runtime"  # cuDNN 8 (compatibile con ctranslate2 4.4.0)
+operating_sys = "ubuntu22.04"
+tag = f"{cuda_version}-{flavor}-{operating_sys}"
+
 whisperx_image = (
-    modal.Image.debian_slim(python_version="3.10")
-    .apt_install("ffmpeg", "git")
+    modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11")
+    .apt_install("git", "ffmpeg")
+    # Installa PyTorch 2.3.1 (compatibile con cuDNN 8)
     .pip_install(
-        "torch>=2.0,<3.0",
-        "torchaudio>=2.2.0",
-        "git+https://github.com/m-bain/whisperX.git@v3.3.2",
+        "torch==2.3.1",
+        "torchaudio==2.3.1",
+        index_url="https://download.pytorch.org/whl/cu121",
+    )
+    # Installa WhisperX con ctranslate2 4.4.0 e numpy<2.0
+    .pip_install(
+        "git+https://github.com/m-bain/whisperx.git",
+        "ffmpeg-python",
+        "ctranslate2==4.4.0",
+        "numpy<2.0",
         "supabase",
         "fastapi",
         "pydantic",
@@ -43,6 +56,9 @@ supabase_secret = modal.Secret.from_name("supabase-credentials")
     timeout=3600,  # 1 hour max
     secrets=[supabase_secret],
     memory=16384,  # 16GB RAM
+    env={
+        "LD_LIBRARY_PATH": "/usr/local/cuda/lib64:/usr/local/lib/python3.11/site-packages/torch/lib"
+    }
 )
 def transcribe_audio(
     transcript_id: str,
