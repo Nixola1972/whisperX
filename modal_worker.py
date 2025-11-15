@@ -27,6 +27,8 @@ tag = f"{cuda_version}-{flavor}-{operating_sys}"
 whisperx_image = (
     modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11")
     .apt_install("git", "ffmpeg")
+    # Installa wheel e setuptools PRIMA (dal PyPI standard)
+    .pip_install("wheel", "setuptools")
     # Installa PyTorch 2.0.0 (versione testata da Modal)
     .pip_install(
         "torch==2.0.0",
