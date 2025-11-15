@@ -18,18 +18,15 @@ from pathlib import Path
 app = modal.App("whisperx-transcription")
 
 # Create Modal image with all dependencies
-# Install cuDNN 9 explicitly for PyTorch 2.8.0 compatibility
 whisperx_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg", "git")
     .pip_install(
-        "nvidia-cudnn-cu12==9.1.0.70",  # cuDNN 9 for PyTorch 2.8.0
         "git+https://github.com/m-bain/whisperX.git",
         "supabase",
         "fastapi",
         "pydantic",
     )
-    .env({"LD_LIBRARY_PATH": "/usr/local/lib/python3.11/site-packages/nvidia/cudnn/lib"})
 )
 
 # Supabase secrets (configured via: modal secret create supabase-credentials)
