@@ -18,13 +18,13 @@ from pathlib import Path
 app = modal.App("whisperx-transcription")
 
 # Create Modal image with all dependencies
-# Use PyTorch 2.7.0 official image with CUDA 12.8 and cuDNN 9
+# Use debian slim and install everything with compatible versions
 whisperx_image = (
-    modal.Image.from_registry(
-        "pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime"
-    )
-    .run_commands("apt-get update && apt-get install -y ffmpeg git")
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("ffmpeg", "git", "build-essential")
     .pip_install(
+        "torch==2.5.0",  # Use stable version with cuDNN support
+        "torchaudio==2.5.0",
         "git+https://github.com/m-bain/whisperX.git",
         "supabase",
         "fastapi",
