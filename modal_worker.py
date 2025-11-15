@@ -18,16 +18,14 @@ from pathlib import Path
 app = modal.App("whisperx-transcription")
 
 # Create Modal image with all dependencies
-# Use CUDA 12.1 base image with PyTorch pre-installed
+# Use CUDA 12.4 base image with cuDNN 9 for torch 2.8.0 compatibility
 whisperx_image = (
     modal.Image.from_registry(
-        "nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04",
+        "nvidia/cuda:12.4.0-cudnn-runtime-ubuntu22.04",
         add_python="3.11"
     )
     .apt_install("ffmpeg", "git")
     .pip_install(
-        "torch==2.1.0",
-        "torchaudio==2.1.0",
         "git+https://github.com/m-bain/whisperX.git",
         "supabase",
         "fastapi",
