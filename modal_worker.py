@@ -18,28 +18,27 @@ from pathlib import Path
 app = modal.App("whisperx-transcription")
 
 # Create Modal image with all dependencies
-# SOLUZIONE 1: Combinazione stabile PyTorch 2.3.1 + ctranslate2 4.4.0 + cuDNN 8
-# Usa immagine NVIDIA CUDA base invece di debian_slim
-cuda_version = "12.1.1"
-flavor = "cudnn8-runtime"  # cuDNN 8 (compatibile con ctranslate2 4.4.0)
+# BASATO SU ESEMPIO UFFICIALE MODAL: https://modal.com/docs/examples/whisperx
+cuda_version = "12.4.0"  # should be no greater than host CUDA version
+flavor = "devel"  # includes full CUDA toolkit
 operating_sys = "ubuntu22.04"
 tag = f"{cuda_version}-{flavor}-{operating_sys}"
 
 whisperx_image = (
     modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11")
     .apt_install("git", "ffmpeg")
-    # Installa PyTorch 2.3.1 (compatibile con cuDNN 8)
+    # Installa PyTorch 2.0.0 (versione testata da Modal)
     .pip_install(
-        "torch==2.3.1",
-        "torchaudio==2.3.1",
-        index_url="https://download.pytorch.org/whl/cu121",
+        "torch==2.0.0",
+        "torchaudio==2.0.0",
+        "numpy<2.0",
+        index_url="https://download.pytorch.org/whl/cu118",
     )
-    # Installa WhisperX 3.2.0 con ctranslate2 4.4.0 e numpy<2.0
+    # Installa WhisperX 3.2.0 + ctranslate2 4.4.0 (stack testato)
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
         "ctranslate2==4.4.0",
-        "numpy<2.0",
         "supabase",
         "fastapi",
         "pydantic",
