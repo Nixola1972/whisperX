@@ -62,7 +62,45 @@ This repository provides fast automatic speech recognition (70x realtime with la
 
 <h2 align="left" id="setup">Setup ⚙️</h2>
 
-### 0. CUDA Installation
+### 0. System Dependencies
+
+Before installing WhisperX, you need to install system-level dependencies required by PyAV (audio/video processing library):
+
+#### Linux (Ubuntu/Debian)
+```bash
+sudo apt-get update
+sudo apt-get install -y pkg-config ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
+```
+
+#### Linux (Fedora/RHEL/CentOS)
+```bash
+sudo dnf install -y pkgconfig ffmpeg-free-devel
+```
+
+#### macOS
+```bash
+brew install pkg-config ffmpeg
+```
+
+#### Windows
+Install FFmpeg and pkg-config:
+1. Download FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html)
+2. Install pkg-config via [chocolatey](https://chocolatey.org/): `choco install pkgconfiglite`
+
+#### Docker/Container Environments
+If using Docker or container services (Modal, etc.), add these to your Dockerfile or build configuration:
+```dockerfile
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    ffmpeg \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libswresample-dev
+```
+
+### 1. CUDA Installation (Optional)
 
 To use WhisperX with GPU acceleration, install the CUDA toolkit 12.8 before WhisperX. Skip this step if using only the CPU.
 
@@ -71,7 +109,7 @@ To use WhisperX with GPU acceleration, install the CUDA toolkit 12.8 before Whis
 - For **Windows** users, download and install the CUDA toolkit 12.8:
   [CUDA Downloads](https://developer.nvidia.com/cuda-12-8-1-download-archive).
 
-### 1. Simple Installation (Recommended)
+### 2. Simple Installation (Recommended)
 
 The easiest way to install WhisperX is through PyPi:
 
@@ -85,7 +123,7 @@ Or if using [uvx](https://docs.astral.sh/uv/guides/tools/#running-tools):
 uvx whisperx
 ```
 
-### 2. Advanced Installation Options
+### 3. Advanced Installation Options
 
 These installation methods are for developers or users with specific needs. If you're not sure, stick with the simple installation above.
 
@@ -108,8 +146,8 @@ uv sync --all-extras --dev
 ```
 
 > **Note**: The development version may contain experimental features and bugs. Use the stable PyPI release for production environments.
-
-You may also need to install ffmpeg, rust etc. Follow openAI instructions here https://github.com/openai/whisper#setup.
+>
+> **Important**: Make sure you have installed the system dependencies (Section 0) before running the installation commands above.
 
 ### Speaker Diarization
 
