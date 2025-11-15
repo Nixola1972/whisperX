@@ -1,0 +1,207 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Users (synced with Supabase Auth)
+model User {
+  id                String              @id @default(uuid())
+  email             String              @unique
+  fullName          String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  subscription      Subscription?
+  transcripts       Transcript[]
+  fileSearchStore   FileSearchStore?
+  apiKeys           ApiKey[]
+  usage             Usage?
+  usageWarnings     UsageWarning[]
+
+  @@map("users")
+}
+
+// Subscriptions (Stripe)
+model Subscription {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId      String   @unique
+  stripeSubscriptionId  String?  @unique
+  stripePriceId         String
+
+  status                String   // active, canceled, past_due, trialing
+  plan                  String   // starter, pro, business
+  billingCycle          String   // monthly, annual
+
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean  @default(false)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
+}
+
+// Transcripts
+model Transcript {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // File info
+  fileName          String
+  filePath          String    // Supabase Storage path
+  fileSize          BigInt    // bytes
+  mimeType          String
+
+  // Processing
+  status            String    // pending, processing, completed, failed
+  errorMessage      String?
+
+  // Results
+  transcriptText    String?   @db.Text
+  language          String?
+  durationSeconds   Int?
+
+  // Structured data
+  segments          Json?     // Array of {start, end, text, speaker}
+  speakers          Json?     // Speaker diarization metadata
+
+  // Gemini File Search
+  geminiDocumentId  String?   @unique
+
+  // Metadata
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  processedAt       DateTime?
+
+  // Relations
+  aiSummaries       AiSummary[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("transcripts")
+}
+
+// AI Summaries
+model AiSummary {
+  id              String     @id @default(uuid())
+  transcriptId    String
+  transcript      Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  type            String     // summary, insights, custom
+  content         String     @db.Text
+  metadata        Json?      // Additional data (keywords, tasks, etc)
+
+  createdAt       DateTime   @default(now())
+
+  @@index([transcriptId])
+  @@map("ai_summaries")
+}
+
+// Gemini File Search Stores (one per user)
+model FileSearchStore {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  geminiStoreName   String   @unique // e.g., "fileSearchStores/abc123"
+  totalSizeMb       Decimal  @default(0) @db.Decimal(10, 2)
+  documentCount     Int      @default(0)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("file_search_stores")
+}
+
+// API Keys (for MCP server)
+model ApiKey {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  key         String   @unique // e.g., "usr_abc123..."
+  name        String   // User-friendly name
+  scopes      String[] // ["read:transcripts", "write:transcripts"]
+
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  @@index([userId])
+  @@index([key])
+  @@map("api_keys")
+}
+
+// Usage tracking
+model Usage {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Current month (resets on billing cycle)
+  periodStart             DateTime
+  periodEnd               DateTime
+
+  // Transcription usage
+  transcriptionHoursMonth Decimal  @default(0) @db.Decimal(10, 2)
+  transcriptionHoursToday Decimal  @default(0) @db.Decimal(10, 2)
+  lastTranscriptDate      DateTime?
+
+  // AI usage
+  aiSummariesMonth        Int      @default(0)
+  aiQuestionsMonth        Int      @default(0)
+  aiInsightsMonth         Int      @default(0)
+
+  // Cost tracking (internal)
+  estimatedCostMonth      Decimal  @default(0) @db.Decimal(10, 2)
+
+  updatedAt               DateTime @updatedAt
+
+  @@map("usage")
+}
+
+// Usage warnings
+model UsageWarning {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  level       String   // info, warning, critical, block
+  type        String   // transcription_limit, ai_limit, cost_exceeded
+  message     String
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("usage_warnings")
+}
+
+// Webhook events log
+model WebhookEvent {
+  id            String   @id @default(uuid())
+  type          String   // stripe.*, modal.*, etc
+  payload       Json
+  processed     Boolean  @default(false)
+  error         String?
+
+  createdAt     DateTime @default(now())
+  processedAt   DateTime?
+
+  @@index([type, processed])
+  @@map("webhook_events")
+}
