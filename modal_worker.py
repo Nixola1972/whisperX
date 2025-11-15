@@ -34,9 +34,9 @@ whisperx_image = (
         "torchaudio==2.3.1",
         index_url="https://download.pytorch.org/whl/cu121",
     )
-    # Installa WhisperX con ctranslate2 4.4.0 e numpy<2.0
+    # Installa WhisperX 3.2.0 con ctranslate2 4.4.0 e numpy<2.0
     .pip_install(
-        "git+https://github.com/m-bain/whisperx.git",
+        "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
         "ctranslate2==4.4.0",
         "numpy<2.0",
