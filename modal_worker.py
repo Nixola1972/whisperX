@@ -80,7 +80,7 @@ def transcribe_audio(
 
     try:
         # Update status to processing
-        supabase.table("Transcript").update({
+        supabase.table("transcripts").update({
             "status": "processing",
             "processedAt": datetime.utcnow().isoformat()
         }).eq("id", transcript_id).execute()
@@ -208,14 +208,14 @@ def transcribe_audio(
 
         # Update database record
         print("[INFO] Updating database...")
-        supabase.table("Transcript").update({
+        supabase.table("transcripts").update({
             "status": "completed",
             "language": detected_language,
             "durationSeconds": int(duration_seconds),
             "processedAt": datetime.utcnow().isoformat(),
-            "text": full_text[:5000],  # Store first 5000 chars in DB
+            "transcriptText": full_text[:5000],  # Store first 5000 chars in DB
             "segments": segments_json,
-            "speakersCount": speakers_data["count"] if speakers_data else None
+            "speakers": speakers_data
         }).eq("id", transcript_id).execute()
 
         # Cleanup temporary file
@@ -238,8 +238,9 @@ def transcribe_audio(
 
         # Update status to failed
         try:
-            supabase.table("Transcript").update({
+            supabase.table("transcripts").update({
                 "status": "failed",
+                "errorMessage": error_msg[:500],
                 "processedAt": datetime.utcnow().isoformat()
             }).eq("id", transcript_id).execute()
         except:
