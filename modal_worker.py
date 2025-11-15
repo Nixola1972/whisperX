@@ -18,13 +18,10 @@ from pathlib import Path
 app = modal.App("whisperx-transcription")
 
 # Create Modal image with all dependencies
-# Use PyTorch's official Docker image which has CUDA/cuDNN pre-configured
+# Let Modal handle CUDA/cuDNN installation automatically when gpu= is specified
 whisperx_image = (
-    modal.Image.from_registry(
-        "pytorch/pytorch:2.8.0-cuda12.4-cudnn9-runtime",
-        add_python="3.11"
-    )
-    .run_commands("apt-get update && apt-get install -y ffmpeg git")
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("ffmpeg", "git")
     .pip_install(
         "git+https://github.com/m-bain/whisperX.git",
         "supabase",
