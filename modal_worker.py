@@ -18,13 +18,14 @@ from pathlib import Path
 app = modal.App("whisperx-transcription")
 
 # Create Modal image with all dependencies
-# Use WhisperX 3.3.2 (stable version with CUDNN fix) with torch 2.1.0
+# Use WhisperX 3.3.2 (stable version with CUDNN fix)
+# Let pip auto-resolve PyTorch versions for compatibility with pyannote-audio
 whisperx_image = (
     modal.Image.debian_slim(python_version="3.10")
     .apt_install("ffmpeg", "git")
     .pip_install(
-        "torch==2.1.0",
-        "torchaudio==2.1.0",
+        "torch>=2.0,<3.0",
+        "torchaudio>=2.2.0",
         "git+https://github.com/m-bain/whisperX.git@v3.3.2",
         "supabase",
         "fastapi",
