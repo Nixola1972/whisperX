@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { exportTranscript } from '../utils/exportTranscript';
-import type { Transcription } from '../types';
+import { exportTranscript } from '../../utils/exportTranscript';
+import type { Transcription } from '../../types';
 
 interface ExportDropdownProps {
   transcription: Transcription;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { formatDuration } from '../utils/formatters';
+import { formatDuration } from '../../utils/formatters';
 
 interface StatusBadgeProps {
   status: 'queued' | 'processing' | 'completed' | 'failed';

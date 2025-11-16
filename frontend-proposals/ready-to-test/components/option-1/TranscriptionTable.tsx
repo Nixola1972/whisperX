@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { StatusBadge } from './StatusBadge';
 import { ExportDropdown } from './ExportDropdown';
-import { formatDuration, formatDate, formatFileSize } from '../utils/formatters';
-import type { Transcription } from '../types';
+import { formatDuration, formatDate, formatFileSize } from '../../utils/formatters';
+import type { Transcription } from '../../types';
 
 interface TranscriptionTableProps {
   transcriptions: Transcription[];

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { UploadArea } from './UploadArea';
 import { TranscriptionTable } from './TranscriptionTable';
 import { StatsHeader } from './StatsHeader';
-import { useTranscriptions } from '../hooks/useTranscriptions';
+import { useTranscriptions } from '../../hooks/useTranscriptions';
 
 export function Dashboard() {
   const {
