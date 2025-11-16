@@ -80,23 +80,33 @@ export function useTranscriptions() {
 
       if (dbError) throw dbError;
 
-      // 3. Trigger Modal transcription webhook
-      const response = await fetch(MODAL_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          transcript_id: transcript.id,
-          file_path: filePath,
-          user_id: demoUserId,
-          language: null, // Auto-detect
-          enable_diarization: true,
-        }),
-      });
+      // 3. Trigger Modal transcription webhook (optional - skip if not configured)
+      if (MODAL_WEBHOOK_URL && MODAL_WEBHOOK_URL !== 'your_modal_webhook_url_here') {
+        try {
+          const response = await fetch(MODAL_WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              transcript_id: transcript.id,
+              file_path: filePath,
+              user_id: demoUserId,
+              language: null, // Auto-detect
+              enable_diarization: true,
+            }),
+          });
 
-      if (!response.ok) {
-        throw new Error(`Modal webhook failed: ${response.statusText}`);
+          if (!response.ok) {
+            console.warn(`Modal webhook failed: ${response.statusText}`);
+            console.warn('File uploaded successfully but transcription will remain in "queued" status');
+          }
+        } catch (webhookError) {
+          console.warn('Modal webhook error:', webhookError);
+          console.warn('File uploaded successfully but transcription will remain in "queued" status');
+        }
+      } else {
+        console.info('Modal webhook not configured - file will remain in "queued" status');
       }
 
       // 4. Refresh transcriptions list
