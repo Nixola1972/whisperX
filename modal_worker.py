@@ -57,6 +57,7 @@ whisperx_image = (
         "supabase",
         "fastapi",
         "pydantic",
+        "matplotlib",  # Required by pyannote.audio
     )
     # Force NumPy 1.x (pyannote.audio incompatible with NumPy 2.x)
     .pip_install("numpy==1.26.3")
