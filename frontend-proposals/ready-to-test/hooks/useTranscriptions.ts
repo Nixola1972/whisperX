@@ -62,6 +62,7 @@ export function useTranscriptions() {
       if (uploadError) throw uploadError;
 
       // 2. Create transcript record in database
+      const now = new Date().toISOString();
       const { data: transcript, error: dbError } = await supabase
         .from('transcripts')
         .insert({
@@ -71,6 +72,8 @@ export function useTranscriptions() {
           filePath,
           mimeType: file.type,
           status: 'queued',
+          createdAt: now,
+          updatedAt: now,
         })
         .select()
         .single();
