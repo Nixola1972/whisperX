@@ -47,17 +47,14 @@ export function useTranscriptions() {
     }
   }, []);
 
-  // Upload and trigger transcription
+  // Upload and trigger transcription (NO AUTH REQUIRED)
   const uploadFile = useCallback(async (file: File) => {
     try {
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      // Use a demo user ID (no authentication required)
+      const demoUserId = 'demo-user';
 
       // 1. Upload file to Supabase Storage
-      const filePath = `${user.id}/${Date.now()}-${file.name}`;
+      const filePath = `public/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('audio-temp')
         .upload(filePath, file);
@@ -68,7 +65,7 @@ export function useTranscriptions() {
       const { data: transcript, error: dbError } = await supabase
         .from('transcripts')
         .insert({
-          userId: user.id,
+          userId: demoUserId,
           fileName: file.name,
           fileSize: file.size,
           filePath,
@@ -88,7 +85,7 @@ export function useTranscriptions() {
         body: JSON.stringify({
           transcript_id: transcript.id,
           file_path: filePath,
-          user_id: user.id,
+          user_id: demoUserId,
           language: null, // Auto-detect
           enable_diarization: true,
         }),
