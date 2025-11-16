@@ -69,6 +69,7 @@ export function useTranscriptions() {
           fileName: file.name,
           fileSize: file.size,
           filePath,
+          mimeType: file.type,
           status: 'queued',
         })
         .select()
