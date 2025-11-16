@@ -29,6 +29,7 @@ whisperx_image = (
     .apt_install(
         "git",
         "build-essential",      # C/C++ compilers (gcc, g++, make) for building PyAV
+        "clang",                # Clang compiler (required by PyAV build system)
         "pkg-config",           # Required for building PyAV
         "ffmpeg",               # FFmpeg runtime
         "libavcodec-dev",       # FFmpeg development libraries
