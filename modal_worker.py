@@ -58,6 +58,8 @@ whisperx_image = (
         "fastapi",
         "pydantic",
     )
+    # Force NumPy 1.x (pyannote.audio incompatible with NumPy 2.x)
+    .pip_install("numpy==1.26.3")
 )
 
 # Supabase secrets (configured via: modal secret create supabase-credentials)
