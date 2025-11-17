@@ -43,9 +43,19 @@ whisperx_image = (
         "torchaudio==0.13.1",
         index_url="https://download.pytorch.org/whl/cu117",
     )
-    # Apply monkey-patch to fix torchaudio.set_audio_backend() compatibility
-    .copy_local_file("patch_torchaudio.py", "/tmp/patch_torchaudio.py")
-    .run_commands("python3 /tmp/patch_torchaudio.py")
+    # Install sitecustomize.py for automatic torchaudio patching
+    # This runs automatically when Python starts, BEFORE any imports
+    .run_commands(
+        "SITEDIR=$(python3 -c 'import site; print(site.getsitepackages()[0])') && "
+        "echo 'Site-packages dir:' $SITEDIR"
+    )
+    .copy_local_file("sitecustomize.py", "/tmp/sitecustomize.py")
+    .run_commands(
+        "SITEDIR=$(python3 -c 'import site; print(site.getsitepackages()[0])') && "
+        "cp /tmp/sitecustomize.py $SITEDIR/sitecustomize.py && "
+        "echo '✅ Installed sitecustomize.py to' $SITEDIR && "
+        "ls -la $SITEDIR/sitecustomize.py"
+    )
 )
 
 
