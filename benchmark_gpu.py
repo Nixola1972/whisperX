@@ -29,8 +29,8 @@ whisperx_image = (
     )
     .pip_install("numpy==1.26.4")
     .pip_install(
-        "torch==2.0.0",
-        "torchaudio==2.0.0"
+        "torch==1.13.1",
+        "torchaudio==0.13.1"
     )
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",

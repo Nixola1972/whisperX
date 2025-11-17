@@ -44,11 +44,11 @@ whisperx_image = (
     .pip_install("wheel", "setuptools")
     # FORZA NumPy 1.26.4 (ultima versione 1.x stabile) - DEVE essere prima di PyTorch
     .pip_install("numpy==1.26.4")
-    # Installa PyTorch 2.0.0 (versione testata da Modal)
+    # Installa PyTorch 1.13.1 (compatibile con pyannote.audio in whisperx v3.2.0)
     .pip_install(
-        "torch==2.0.0",
-        "torchaudio==2.0.0",
-        index_url="https://download.pytorch.org/whl/cu118",
+        "torch==1.13.1",
+        "torchaudio==0.13.1",
+        index_url="https://download.pytorch.org/whl/cu117",
     )
     # Installa WhisperX 3.2.0 + ctranslate2 4.4.0 (stack testato)
     .pip_install(
