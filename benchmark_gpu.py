@@ -10,48 +10,32 @@ import os
 
 app = modal.App("whisperx-gpu-benchmark")
 
-# Same image as production
+# EXACT SAME CONFIG AS WORKING whisperx-transcription
 whisperx_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install(
         "git",
-        "build-essential",
-        "clang",
         "pkg-config",
         "ffmpeg",
         "libavcodec-dev",
         "libavformat-dev",
         "libavutil-dev",
-        "libavdevice-dev",
-        "libavfilter-dev",
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"BUILD_VERSION": "v8_patch_pyannote"})  # Force rebuild with new cache key
-    .run_commands("echo '🔨 Building image v8 with pyannote.audio patch'")
-    .pip_install("numpy==1.26.4")
-    # Install torch/torchaudio FIRST with specific versions
-    # torchaudio 2.0.2 is the last version with set_audio_backend() method
+    .pip_install("wheel", "setuptools")
     .pip_install(
-        "torch==2.0.1",
-        "torchaudio==2.0.2",
+        "torch==2.0.0",
+        "torchaudio==2.0.0",
+        "numpy<2.0",
         index_url="https://download.pytorch.org/whl/cu118",
     )
-    # Then install whisperx (will use already-installed torch/torchaudio)
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
         "ctranslate2==4.4.0",
         "supabase",
         "matplotlib",
-    )
-    # Patch pyannote.audio to remove problematic set_audio_backend() call
-    .run_commands(
-        "echo '🔧 Patching pyannote.audio/core/io.py...' && "
-        "sed -i 's/torchaudio\\.set_audio_backend(\"soundfile\")/# torchaudio.set_audio_backend(\"soundfile\") - PATCHED/g' "
-        "/usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py && "
-        "grep -n 'PATCHED' /usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py && "
-        "echo '✅ Successfully patched pyannote.audio/core/io.py'"
     )
 )
 
