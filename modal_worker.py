@@ -28,6 +28,7 @@ whisperx_image = (
     modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11")
     .apt_install(
         "git",
+        "build-essential",      # C/C++ compilers (gcc, g++, make) - needed to build PyAV
         "pkg-config",           # Required for building PyAV
         "ffmpeg",               # FFmpeg runtime
         "libavcodec-dev",       # FFmpeg development libraries
