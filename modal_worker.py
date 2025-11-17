@@ -301,9 +301,19 @@ def transcribe_webhook():
     }
     """
     from fastapi import FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
 
     web_app = FastAPI()
+
+    # Configure CORS to allow requests from your Next.js app
+    web_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # In production, replace with your domain
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     class TranscribeRequest(BaseModel):
         transcript_id: str
