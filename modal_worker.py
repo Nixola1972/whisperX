@@ -67,10 +67,18 @@ whisperx_image = (
 
 # Secrets (configured via: modal secret create)
 supabase_secret = modal.Secret.from_name("supabase-credentials")
+
 # Optional: Gemini API key for RAG (modal secret create gemini-api --env GEMINI_API_KEY=your_key)
-gemini_secret = modal.Secret.from_name("gemini-api", required=False)
+try:
+    gemini_secret = modal.Secret.from_name("gemini-api")
+except Exception:
+    gemini_secret = supabase_secret  # Fallback to avoid deployment errors
+
 # Optional: HuggingFace token for pyannote diarization (modal secret create hf-token --env HF_TOKEN=your_token)
-hf_secret = modal.Secret.from_name("hf-token", required=False)
+try:
+    hf_secret = modal.Secret.from_name("hf-token")
+except Exception:
+    hf_secret = supabase_secret  # Fallback to avoid deployment errors
 
 
 @app.function(
