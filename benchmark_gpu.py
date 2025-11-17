@@ -27,20 +27,22 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"TORCH_VERSION_FIX": "v2"})  # Cache invalidation
+    .env({"TORCH_VERSION_FIX": "v3"})  # Cache invalidation
     .pip_install("numpy==1.26.4")
-    .pip_install(
-        "torch==1.13.1",
-        "torchaudio==0.13.1",
-        index_url="https://download.pytorch.org/whl/cu117",
-        force_build=True
-    )
+    # Install whisperx FIRST (it will install torch/torchaudio as dependencies)
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
         "ctranslate2==4.4.0",
         "supabase",
         "matplotlib",
+    )
+    # Then DOWNGRADE torch/torchaudio to compatible versions
+    .pip_install(
+        "torch==1.13.1",
+        "torchaudio==0.13.1",
+        index_url="https://download.pytorch.org/whl/cu117",
+        force_build=True
     )
     .pip_install("numpy==1.26.4", force_build=True)
 )

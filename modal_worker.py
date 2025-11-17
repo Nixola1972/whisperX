@@ -40,19 +40,12 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"TORCH_VERSION_FIX": "v2"})  # Cache invalidation
+    .env({"TORCH_VERSION_FIX": "v3"})  # Cache invalidation
     # Installa wheel e setuptools PRIMA (dal PyPI standard)
     .pip_install("wheel", "setuptools")
-    # FORZA NumPy 1.26.4 (ultima versione 1.x stabile) - DEVE essere prima di PyTorch
+    # FORZA NumPy 1.26.4 (ultima versione 1.x stabile)
     .pip_install("numpy==1.26.4")
-    # Installa PyTorch 1.13.1 (compatibile con pyannote.audio in whisperx v3.2.0)
-    .pip_install(
-        "torch==1.13.1",
-        "torchaudio==0.13.1",
-        index_url="https://download.pytorch.org/whl/cu117",
-        force_build=True
-    )
-    # Installa WhisperX 3.2.0 + ctranslate2 4.4.0 (stack testato)
+    # Installa WhisperX 3.2.0 PRIMA (installerà torch/torchaudio come dipendenze)
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
@@ -63,7 +56,14 @@ whisperx_image = (
         "matplotlib",  # Required by pyannote.audio
         "google-genai",  # Gemini RAG for Q&A
     )
-    # FORZA NumPy 1.26.4 DOPO WhisperX per evitare che venga sovrascritta con NumPy 2.x
+    # Poi DOWNGRADE PyTorch a 1.13.1 (compatibile con pyannote.audio in whisperx v3.2.0)
+    .pip_install(
+        "torch==1.13.1",
+        "torchaudio==0.13.1",
+        index_url="https://download.pytorch.org/whl/cu117",
+        force_build=True
+    )
+    # FORZA NumPy 1.26.4 DOPO per evitare che venga sovrascritta con NumPy 2.x
     .pip_install("numpy==1.26.4", force_build=True)
 )
 
