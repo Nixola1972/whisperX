@@ -27,9 +27,8 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"TORCH_VERSION_FIX": "v3"})  # Cache invalidation
+    .env({"TORCH_VERSION_FIX": "v4"})  # Cache invalidation
     .pip_install("numpy==1.26.4")
-    # Install whisperx FIRST (it will install torch/torchaudio as dependencies)
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
@@ -37,12 +36,10 @@ whisperx_image = (
         "supabase",
         "matplotlib",
     )
-    # Then DOWNGRADE torch/torchaudio to compatible versions
-    .pip_install(
-        "torch==1.13.1",
-        "torchaudio==0.13.1",
-        index_url="https://download.pytorch.org/whl/cu117",
-        force_build=True
+    # CRITICAL FIX: pyannote.audio has a bug - it calls torchaudio.set_audio_backend()
+    # which was removed in torchaudio 2.0+. We need to patch it.
+    .run_commands(
+        "sed -i 's/torchaudio.set_audio_backend(\"soundfile\")/#torchaudio.set_audio_backend(\"soundfile\") # Patched: removed deprecated call/g' /usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py || true"
     )
     .pip_install("numpy==1.26.4", force_build=True)
 )
