@@ -33,6 +33,8 @@ whisperx_image = (
         "libavcodec-dev",       # FFmpeg development libraries
         "libavformat-dev",      # Required for compiling PyAV from source
         "libavutil-dev",        # (PyAV is a dependency of ffmpeg-python)
+        "libavdevice-dev",      # Required for PyAV
+        "libavfilter-dev",      # Required for PyAV
         "libswscale-dev",
         "libswresample-dev"
     )
