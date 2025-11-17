@@ -59,20 +59,25 @@ whisperx_image = (
         "fastapi",
         "pydantic",
         "matplotlib",  # Required by pyannote.audio
+        "google-genai",  # Gemini RAG for Q&A
     )
     # FORZA NumPy 1.26.4 DOPO WhisperX per evitare che venga sovrascritta con NumPy 2.x
     .pip_install("numpy==1.26.4", force_build=True)
 )
 
-# Supabase secrets (configured via: modal secret create supabase-credentials)
+# Secrets (configured via: modal secret create)
 supabase_secret = modal.Secret.from_name("supabase-credentials")
+# Optional: Gemini API key for RAG (modal secret create gemini-api --env GEMINI_API_KEY=your_key)
+gemini_secret = modal.Secret.from_name("gemini-api", required=False)
+# Optional: HuggingFace token for pyannote diarization (modal secret create hf-token --env HF_TOKEN=your_token)
+hf_secret = modal.Secret.from_name("hf-token", required=False)
 
 
 @app.function(
     image=whisperx_image,
     gpu="any",  # Try to get any available GPU
     timeout=3600,  # 1 hour max
-    secrets=[supabase_secret],
+    secrets=[supabase_secret, gemini_secret, hf_secret],
     memory=16384,  # 16GB RAM
     env={
         "LD_LIBRARY_PATH": "/usr/local/cuda/lib64:/usr/local/lib/python3.11/site-packages/torch/lib"
@@ -181,8 +186,13 @@ def transcribe_audio(
         if enable_diarization:
             try:
                 print("[INFO] Running speaker diarization...")
+                # Use HuggingFace token if available (required for pyannote models)
+                hf_token = os.environ.get("HF_TOKEN")
+                if not hf_token:
+                    print("[WARNING] HF_TOKEN not set - diarization may fail")
+
                 diarize_model = whisperx.DiarizationPipeline(
-                    use_auth_token=None,  # No HuggingFace token needed for pyannote 3.0+
+                    use_auth_token=hf_token,
                     device=device
                 )
                 diarize_segments = diarize_model(audio)
@@ -242,6 +252,74 @@ def transcribe_audio(
             }
         )
 
+        # Upload to Gemini File Search for RAG (optional)
+        gemini_document_id = None
+        gemini_api_key = os.environ.get("GEMINI_API_KEY")
+        if gemini_api_key:
+            try:
+                print("[INFO] Uploading to Gemini File Search for RAG...")
+                from google import genai
+                from google.genai import types
+                import time
+
+                client = genai.Client(api_key=gemini_api_key)
+
+                # Create a temporary transcript file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+                    # Write formatted transcript with metadata
+                    tmp.write(f"Transcript: {file_path}\n")
+                    tmp.write(f"Language: {detected_language}\n")
+                    tmp.write(f"Duration: {duration_seconds}s\n\n")
+
+                    if speakers_data:
+                        tmp.write(f"Speakers: {speakers_data['count']}\n\n")
+
+                    for i, seg in enumerate(segments_json):
+                        speaker = f"[{seg['speaker']}] " if seg.get('speaker') else ""
+                        tmp.write(f"{speaker}{seg['text']}\n")
+
+                    transcript_file_path = tmp.name
+
+                # Get or create file search store
+                stores = list(client.file_search_stores.list())
+                if stores:
+                    file_search_store = stores[0]  # Use first existing store
+                else:
+                    file_search_store = client.file_search_stores.create(
+                        config={'display_name': 'whisperx-transcripts'}
+                    )
+
+                # Upload to Gemini
+                operation = client.file_search_stores.upload_to_file_search_store(
+                    file=transcript_file_path,
+                    file_search_store_name=file_search_store.name,
+                    config={
+                        'display_name': f"{file_path}",
+                    }
+                )
+
+                # Wait for completion (max 30s)
+                max_wait = 30
+                start_time = time.time()
+                while not operation.done and (time.time() - start_time) < max_wait:
+                    time.sleep(2)
+                    operation = client.operations.get(operation)
+
+                if operation.done:
+                    gemini_document_id = file_search_store.name
+                    print(f"[SUCCESS] Uploaded to Gemini: {gemini_document_id}")
+                else:
+                    print("[WARNING] Gemini upload timed out")
+
+                # Cleanup temp file
+                os.remove(transcript_file_path)
+
+            except Exception as e:
+                print(f"[WARNING] Gemini upload failed: {e}")
+                print("[INFO] Continuing without Gemini RAG...")
+        else:
+            print("[INFO] GEMINI_API_KEY not set - skipping Gemini upload")
+
         # Update database record
         print("[INFO] Updating database...")
         supabase.table("transcripts").update({
@@ -251,7 +329,8 @@ def transcribe_audio(
             "processedAt": datetime.utcnow().isoformat(),
             "transcriptText": full_text[:5000],  # Store first 5000 chars in DB
             "segments": segments_json,
-            "speakers": speakers_data
+            "speakers": speakers_data,
+            "geminiDocumentId": gemini_document_id
         }).eq("id", transcript_id).execute()
 
         # Cleanup temporary file
