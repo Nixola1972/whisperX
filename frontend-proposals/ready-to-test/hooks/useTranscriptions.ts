@@ -70,7 +70,7 @@ export function useTranscriptions() {
           fileName: file.name,
           fileSize: file.size,
           filePath,
-          mimeType: file.type,
+          mimeType: file.type || 'audio/mpeg', // Fallback to audio/mpeg if type is empty
           status: 'queued',
           createdAt: now,
           updatedAt: now,
