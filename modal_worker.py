@@ -83,10 +83,10 @@ except Exception:
 
 @app.function(
     image=whisperx_image,
-    gpu="any",  # Try to get any available GPU
+    gpu="T4",  # Nvidia T4 - economico e veloce (~$0.60/ora vs $3/ora A100)
     timeout=3600,  # 1 hour max
     secrets=[supabase_secret, gemini_secret, hf_secret],
-    memory=16384,  # 16GB RAM
+    memory=8192,  # 8GB RAM sufficiente per medium model
     env={
         "LD_LIBRARY_PATH": "/usr/local/cuda/lib64:/usr/local/lib/python3.11/site-packages/torch/lib"
     }
@@ -152,9 +152,9 @@ def transcribe_audio(
         print(f"[INFO] Using device: {device}, compute_type: {compute_type}")
 
         # Load WhisperX model
-        print("[INFO] Loading WhisperX model (large-v3)...")
+        print("[INFO] Loading WhisperX model (medium)...")
         model = whisperx.load_model(
-            "large-v3",
+            "medium",  # Ottimo compromesso qualità/velocità/costo (large-v3 troppo costoso)
             device=device,
             compute_type=compute_type,
             language=language
