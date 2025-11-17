@@ -65,17 +65,8 @@ whisperx_image = (
     # FORZA NumPy 1.26.4 DOPO per evitare che venga sovrascritta con NumPy 2.x
     .pip_install("numpy==1.26.4", force_build=True)
     # Apply monkey-patch to fix torchaudio.set_audio_backend() compatibility
-    .run_commands(
-        "python3 -c \""
-        "import importlib.util; "
-        "spec = importlib.util.find_spec('torchaudio'); "
-        "torchaudio_init = spec.origin; "
-        "with open(torchaudio_init, 'a') as f: "
-        "    f.write('\\n\\n# Monkey-patch for pyannote.audio compatibility\\n'); "
-        "    f.write('def set_audio_backend(backend):\\n'); "
-        "    f.write('    pass  # No-op: torchaudio 2.0+ auto-selects backend\\n'); "
-        "print(f'Patched {torchaudio_init}')\""
-    )
+    .copy_local_file("patch_torchaudio.py", "/tmp/patch_torchaudio.py")
+    .run_commands("python3 /tmp/patch_torchaudio.py")
 )
 
 # Secrets (configured via: modal secret create)

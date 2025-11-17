@@ -44,17 +44,8 @@ whisperx_image = (
         index_url="https://download.pytorch.org/whl/cu117",
     )
     # Apply monkey-patch to fix torchaudio.set_audio_backend() compatibility
-    .run_commands(
-        "python3 -c \""
-        "import importlib.util; "
-        "spec = importlib.util.find_spec('torchaudio'); "
-        "torchaudio_init = spec.origin; "
-        "with open(torchaudio_init, 'a') as f: "
-        "    f.write('\\n\\n# Monkey-patch for pyannote.audio compatibility\\n'); "
-        "    f.write('def set_audio_backend(backend):\\n'); "
-        "    f.write('    pass  # No-op: torchaudio 2.0+ auto-selects backend\\n'); "
-        "print(f'Patched {torchaudio_init}')\""
-    )
+    .copy_local_file("patch_torchaudio.py", "/tmp/patch_torchaudio.py")
+    .run_commands("python3 /tmp/patch_torchaudio.py")
 )
 
 
