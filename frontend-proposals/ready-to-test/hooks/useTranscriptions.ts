@@ -81,7 +81,11 @@ export function useTranscriptions() {
       if (dbError) throw dbError;
 
       // 3. Trigger Modal transcription webhook (optional - skip if not configured)
+      console.log('[DEBUG] MODAL_WEBHOOK_URL:', MODAL_WEBHOOK_URL);
+      console.log('[DEBUG] URL check:', MODAL_WEBHOOK_URL && MODAL_WEBHOOK_URL !== 'your_modal_webhook_url_here');
+
       if (MODAL_WEBHOOK_URL && MODAL_WEBHOOK_URL !== 'your_modal_webhook_url_here') {
+        console.log('[DEBUG] Calling Modal webhook...');
         try {
           const response = await fetch(MODAL_WEBHOOK_URL, {
             method: 'POST',
