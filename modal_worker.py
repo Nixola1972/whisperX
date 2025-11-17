@@ -49,6 +49,7 @@ whisperx_image = (
         "torch==1.13.1",
         "torchaudio==0.13.1",
         index_url="https://download.pytorch.org/whl/cu117",
+        force_build=True
     )
     # Installa WhisperX 3.2.0 + ctranslate2 4.4.0 (stack testato)
     .pip_install(
