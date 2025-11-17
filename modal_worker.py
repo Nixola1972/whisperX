@@ -59,6 +59,8 @@ whisperx_image = (
         "fastapi",
         "pydantic",
     )
+    # FORZA NumPy 1.26.4 DOPO WhisperX per evitare che venga sovrascritta con NumPy 2.x
+    .pip_install("numpy==1.26.4", force_build=True)
 )
 
 # Supabase secrets (configured via: modal secret create supabase-credentials)
