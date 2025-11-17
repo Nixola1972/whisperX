@@ -27,10 +27,12 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
+    .env({"TORCH_VERSION_FIX": "v2"})  # Cache invalidation
     .pip_install("numpy==1.26.4")
     .pip_install(
         "torch==1.13.1",
         "torchaudio==0.13.1",
+        index_url="https://download.pytorch.org/whl/cu117",
         force_build=True
     )
     .pip_install(

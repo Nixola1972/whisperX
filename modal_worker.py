@@ -40,6 +40,7 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
+    .env({"TORCH_VERSION_FIX": "v2"})  # Cache invalidation
     # Installa wheel e setuptools PRIMA (dal PyPI standard)
     .pip_install("wheel", "setuptools")
     # FORZA NumPy 1.26.4 (ultima versione 1.x stabile) - DEVE essere prima di PyTorch
