@@ -27,7 +27,8 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"TORCH_VERSION_FIX": "v7"})  # Cache invalidation - changed install order
+    .env({"BUILD_VERSION": "v8_patch_pyannote"})  # Force rebuild with new cache key
+    .run_commands("echo '🔨 Building image v8 with pyannote.audio patch'")
     .pip_install("numpy==1.26.4")
     # Install torch/torchaudio FIRST with specific versions
     # torchaudio 2.0.2 is the last version with set_audio_backend() method
@@ -46,9 +47,11 @@ whisperx_image = (
     )
     # Patch pyannote.audio to remove problematic set_audio_backend() call
     .run_commands(
-        "sed -i 's/torchaudio.set_audio_backend/#torchaudio.set_audio_backend/g' "
+        "echo '🔧 Patching pyannote.audio/core/io.py...' && "
+        "sed -i 's/torchaudio\\.set_audio_backend(\"soundfile\")/# torchaudio.set_audio_backend(\"soundfile\") - PATCHED/g' "
         "/usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py && "
-        "echo '✅ Patched pyannote.audio/core/io.py'"
+        "grep -n 'PATCHED' /usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py && "
+        "echo '✅ Successfully patched pyannote.audio/core/io.py'"
     )
 )
 
