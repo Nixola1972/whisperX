@@ -28,13 +28,29 @@ const SUPPORTED_EXTENSIONS = [
   '.aac',
 ];
 
+// Lingue supportate da WhisperX
+const LANGUAGES = [
+  { code: 'auto', name: 'Auto-rileva (più lento)', flag: '🌐' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'pt', name: 'Português', flag: '🇵🇹' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+];
+
 interface UploadAreaProps {
-  onUpload: (file: File) => Promise<void>;
+  onUpload: (file: File, language?: string) => Promise<void>;
 }
 
 export function UploadArea({ onUpload }: UploadAreaProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState('it'); // Default: Italiano
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -56,14 +72,16 @@ export function UploadArea({ onUpload }: UploadAreaProps) {
 
       try {
         setIsUploading(true);
-        await onUpload(file);
+        // Pass language only if not auto-detect
+        const lang = selectedLanguage === 'auto' ? undefined : selectedLanguage;
+        await onUpload(file, lang);
       } catch (err: any) {
         setError(err.message || 'Errore durante l\'upload');
       } finally {
         setIsUploading(false);
       }
     },
-    [onUpload]
+    [onUpload, selectedLanguage]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -77,6 +95,33 @@ export function UploadArea({ onUpload }: UploadAreaProps) {
 
   return (
     <div>
+      {/* Language Selector */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Lingua audio (specificare per processamento più veloce)
+        </label>
+        <select
+          value={selectedLanguage}
+          onChange={(e) => setSelectedLanguage(e.target.value)}
+          disabled={isUploading}
+          className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {LANGUAGES.map((lang) => (
+            <option key={lang.code} value={lang.code}>
+              {lang.flag} {lang.name}
+            </option>
+          ))}
+        </select>
+        {selectedLanguage === 'auto' && (
+          <p className="mt-2 text-xs text-amber-400/80 flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Auto-rilevamento richiede ~1 minuto extra di elaborazione
+          </p>
+        )}
+      </div>
+
       <div
         {...getRootProps()}
         className={`

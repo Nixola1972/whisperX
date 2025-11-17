@@ -83,7 +83,7 @@ except Exception:
 
 @app.function(
     image=whisperx_image,
-    gpu="T4",  # Nvidia T4 - economico e veloce (~$0.60/ora vs $3/ora A100)
+    gpu="A10G",  # Nvidia A10G - miglior compromesso velocità/costo (~$1.10/ora, 2-3x più veloce di T4)
     timeout=3600,  # 1 hour max
     secrets=[supabase_secret, gemini_secret, hf_secret],
     memory=8192,  # 8GB RAM sufficiente per medium model

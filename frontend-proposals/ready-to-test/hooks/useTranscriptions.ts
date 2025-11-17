@@ -48,7 +48,7 @@ export function useTranscriptions() {
   }, []);
 
   // Upload and trigger transcription (NO AUTH REQUIRED)
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFile = useCallback(async (file: File, language?: string) => {
     try {
       // Use a demo user ID (no authentication required)
       const demoUserId = 'demo-user';
@@ -96,7 +96,7 @@ export function useTranscriptions() {
               transcript_id: transcript.id,
               file_path: filePath,
               user_id: demoUserId,
-              language: null, // Auto-detect
+              language: language || null, // Use specified language or auto-detect
               enable_diarization: true,
             }),
           });
