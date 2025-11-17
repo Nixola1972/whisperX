@@ -62,7 +62,7 @@ supabase_secret = modal.Secret.from_name("supabase-credentials")
 
 @app.function(
     image=whisperx_image,
-    gpu="A10G",  # NVIDIA A10G GPU (24GB VRAM)
+    gpu="any",  # Try to get any available GPU, fallback to CPU if none available
     timeout=3600,  # 1 hour max
     secrets=[supabase_secret],
     memory=16384,  # 16GB RAM
