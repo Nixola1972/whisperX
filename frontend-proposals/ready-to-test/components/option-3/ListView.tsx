@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Transcription } from '../../types';
 import { formatDuration, formatFileSize, formatDate } from '../../utils/formatters';
 import { StatusBadge } from '../option-1/StatusBadge';
-import { ExportDropdown } from '../option-1/ExportDropdown';
+import { ExportButtons } from '../option-1/ExportButtons';
 
 interface ListViewProps {
   transcriptions: Transcription[];
@@ -156,7 +156,7 @@ export function ListView({ transcriptions, isLoading, onDelete }: ListViewProps)
               {/* Actions */}
               <div className="col-span-2 flex items-center justify-end gap-2">
                 {transcription.status === 'completed' && transcription.transcriptionText && (
-                  <ExportDropdown transcription={transcription} />
+                  <ExportButtons transcription={transcription} />
                 )}
                 <motion.button
                   whileHover={{ scale: 1.1 }}

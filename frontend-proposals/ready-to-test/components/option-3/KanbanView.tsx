@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Transcription } from '../../types';
 import { formatDuration, formatFileSize, formatDate } from '../../utils/formatters';
-import { ExportDropdown } from '../option-1/ExportDropdown';
+import { ExportButtons } from '../option-1/ExportButtons';
 
 interface KanbanViewProps {
   transcriptions: Transcription[];
@@ -148,7 +148,7 @@ export function KanbanView({ transcriptions, isLoading, onDelete }: KanbanViewPr
                       {/* Card Actions */}
                       <div className="flex items-center gap-2 pt-3 border-t border-gray-700/50">
                         {transcription.status === 'completed' && transcription.transcriptionText && (
-                          <ExportDropdown transcription={transcription} />
+                          <ExportButtons transcription={transcription} />
                         )}
 
                         <motion.button

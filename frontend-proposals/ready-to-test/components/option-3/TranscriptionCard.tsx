@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Transcription } from '../../types';
 import { formatDuration, formatFileSize, formatDate } from '../../utils/formatters';
-import { ExportDropdown } from '../option-1/ExportDropdown';
+import { ExportButtons } from '../option-1/ExportButtons';
 
 interface TranscriptionCardProps {
   transcription: Transcription;
@@ -121,7 +121,7 @@ export function TranscriptionCard({ transcription, onDelete, index = 0 }: Transc
       {/* Actions */}
       <div className="flex items-center gap-2 pt-4 border-t border-gray-700/50">
         {transcription.status === 'completed' && transcription.transcriptionText && (
-          <ExportDropdown transcription={transcription} />
+          <ExportButtons transcription={transcription} />
         )}
 
         <motion.button

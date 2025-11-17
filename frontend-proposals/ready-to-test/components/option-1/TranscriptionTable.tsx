@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { StatusBadge } from './StatusBadge';
-import { ExportDropdown } from './ExportDropdown';
+import { ExportButtons } from './ExportButtons';
 import { formatDuration, formatDate, formatFileSize } from '../../utils/formatters';
 import type { Transcription } from '../../types';
 
@@ -369,7 +369,7 @@ function TranscriptionRow({
       <td className="px-4 py-4">
         <div className="flex items-center justify-end gap-2">
           {transcription.status === 'completed' && (
-            <ExportDropdown transcription={transcription} />
+            <ExportButtons transcription={transcription} />
           )}
           <button
             onClick={handleDelete}

@@ -101,11 +101,81 @@ function exportAsJSON(transcription: Transcription): string {
 }
 
 /**
+ * Export as PDF (simple text-based PDF)
+ */
+function exportAsPDF(transcription: Transcription): string {
+  // Simple PDF format - for full PDF support, use jsPDF library
+  const lines = [
+    `TRANSCRIPTION: ${transcription.fileName}`,
+    `Language: ${transcription.language || 'Auto'}`,
+    `Duration: ${Math.floor((transcription.durationSeconds || 0) / 60)}m ${((transcription.durationSeconds || 0) % 60).toFixed(0)}s`,
+    `Created: ${new Date(transcription.createdAt).toLocaleDateString()}`,
+    '',
+    '═'.repeat(80),
+    '',
+  ];
+
+  if (transcription.segments && transcription.segments.length > 0) {
+    transcription.segments.forEach((seg: TranscriptionSegment) => {
+      const timestamp = `[${formatSRTTimestamp(seg.start)} → ${formatSRTTimestamp(seg.end)}]`;
+      const speaker = seg.speaker ? `${seg.speaker}: ` : '';
+      lines.push(`${timestamp}`);
+      lines.push(`${speaker}${seg.text.trim()}`);
+      lines.push('');
+    });
+  } else if (transcription.transcriptText) {
+    lines.push(transcription.transcriptText);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Export as DOCX (text format for Word compatibility)
+ */
+function exportAsDOCX(transcription: Transcription): string {
+  // Simple formatted text - for full DOCX support, use docx library
+  const lines = [
+    `TRANSCRIPTION REPORT`,
+    ``,
+    `File: ${transcription.fileName}`,
+    `Language: ${transcription.language || 'Auto-detected'}`,
+    `Duration: ${Math.floor((transcription.durationSeconds || 0) / 60)} minutes ${((transcription.durationSeconds || 0) % 60).toFixed(0)} seconds`,
+    `Date: ${new Date(transcription.createdAt).toLocaleString()}`,
+    '',
+    '─'.repeat(80),
+    '',
+  ];
+
+  if (transcription.speakers && transcription.speakers.count > 0) {
+    lines.push(`Speakers Detected: ${transcription.speakers.count}`);
+    lines.push('');
+  }
+
+  if (transcription.segments && transcription.segments.length > 0) {
+    transcription.segments.forEach((seg: TranscriptionSegment, index: number) => {
+      const timestamp = `${formatSRTTimestamp(seg.start)} - ${formatSRTTimestamp(seg.end)}`;
+      const speaker = seg.speaker ? `[${seg.speaker}] ` : '';
+
+      lines.push(`Segment ${index + 1} (${timestamp})`);
+      lines.push(`${speaker}${seg.text.trim()}`);
+      lines.push('');
+    });
+  } else if (transcription.transcriptText) {
+    lines.push('FULL TRANSCRIPT:');
+    lines.push('');
+    lines.push(transcription.transcriptText);
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Main export function
  */
 export async function exportTranscript(
   transcription: Transcription,
-  format: 'txt' | 'srt' | 'vtt' | 'json'
+  format: 'txt' | 'srt' | 'vtt' | 'json' | 'pdf' | 'docx'
 ) {
   const baseFilename = transcription.fileName.replace(/\.[^/.]+$/, '');
 
@@ -136,6 +206,20 @@ export async function exportTranscript(
       content = exportAsJSON(transcription);
       filename = `${baseFilename}.json`;
       mimeType = 'application/json';
+      break;
+
+    case 'pdf':
+      content = exportAsPDF(transcription);
+      filename = `${baseFilename}.pdf.txt`;
+      mimeType = 'text/plain';
+      // Note: For true PDF, install jsPDF: npm install jspdf
+      break;
+
+    case 'docx':
+      content = exportAsDOCX(transcription);
+      filename = `${baseFilename}.docx.txt`;
+      mimeType = 'text/plain';
+      // Note: For true DOCX, install docx: npm install docx
       break;
 
     default:
