@@ -40,12 +40,19 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"TORCH_VERSION_FIX": "v6"})  # Cache invalidation
+    .env({"TORCH_VERSION_FIX": "v7"})  # Cache invalidation - changed install order
     # Installa wheel e setuptools PRIMA (dal PyPI standard)
     .pip_install("wheel", "setuptools")
     # FORZA NumPy 1.26.4 (ultima versione 1.x stabile)
     .pip_install("numpy==1.26.4")
-    # Installa WhisperX 3.2.0 PRIMA (installerà torch/torchaudio come dipendenze)
+    # Install torch/torchaudio FIRST with specific versions
+    # torchaudio 2.0.2 is the last version with set_audio_backend() method
+    .pip_install(
+        "torch==2.0.1",
+        "torchaudio==2.0.2",
+        index_url="https://download.pytorch.org/whl/cu118",
+    )
+    # Then install WhisperX 3.2.0 (will use already-installed torch/torchaudio)
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
@@ -55,12 +62,6 @@ whisperx_image = (
         "pydantic",
         "matplotlib",  # Required by pyannote.audio
         "google-genai",  # Gemini RAG for Q&A
-    )
-    # Use torchaudio 2.0.2 - last version with set_audio_backend() method
-    .pip_install(
-        "torch==2.0.1",
-        "torchaudio==2.0.2",
-        index_url="https://download.pytorch.org/whl/cu118",
     )
 )
 
