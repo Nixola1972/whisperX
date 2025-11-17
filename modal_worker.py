@@ -112,6 +112,15 @@ def transcribe_audio(
     Returns:
         dict: Transcription results with segments and speakers
     """
+    # Monkey-patch torchaudio to fix pyannote.audio compatibility
+    import torchaudio
+    if not hasattr(torchaudio, 'set_audio_backend'):
+        # torchaudio 2.0+ removed this method, but pyannote.audio still uses it
+        # Add a no-op implementation to prevent AttributeError
+        def _set_audio_backend(backend):
+            pass  # In torchaudio 2.0+, backend is automatically selected
+        torchaudio.set_audio_backend = _set_audio_backend
+
     import whisperx
     import torch
     from supabase import create_client
