@@ -255,20 +255,57 @@ def main(
 
     all_results = []
 
-    for gpu_name, benchmark_func in benchmarks:
-        print(f"\n🚀 Starting benchmark for {gpu_name}...")
+    for i, (gpu_name, benchmark_func) in enumerate(benchmarks):
+        print("\n" + "="*80)
+        print(f"📊 TEST {i+1}/5: {gpu_name}")
+        print("="*80)
+
+        # Get GPU config info
+        gpu_costs = {
+            "T4": 0.59, "L4": 0.80, "A10G": 1.10,
+            "L40S": 1.95, "A100-40GB": 2.10
+        }
+        cost_per_hour = gpu_costs.get(gpu_name, 0)
+
+        print(f"\n💰 GPU: {gpu_name}")
+        print(f"💵 Costo: ${cost_per_hour}/ora")
+        print(f"📍 Dashboard Modal: https://modal.com/nicola-marcocchio")
+        print(f"\n⏳ Il test partirà tra 3 secondi...")
+        print("   Dopo il test, controlla il costo reale nella dashboard Modal")
+
+        # Wait 3 seconds to give user time to read
+        import time as time_module
+        time_module.sleep(3)
+
+        print(f"\n🚀 Avvio test {gpu_name}...\n")
 
         try:
             result = benchmark_func.remote(file_path, language)
             all_results.append(result)
-            print(f"✅ {gpu_name} completed successfully\n")
+
+            print(f"\n✅ {gpu_name} completato!")
+            print(f"⏱️  Tempo totale: {result['timings']['total_time']}s")
+            print(f"⚡ Velocità: {result['speed_ratio']}x realtime")
+            print(f"💰 Costo teorico: ${result['cost']:.4f}")
+            print(f"\n🔍 CONTROLLA ORA IL COSTO REALE SU:")
+            print(f"   https://modal.com/nicola-marcocchio/usage")
 
         except Exception as e:
-            print(f"❌ {gpu_name} failed: {e}\n")
+            print(f"\n❌ {gpu_name} fallito: {e}")
             all_results.append({
                 "gpu_name": gpu_name,
                 "error": str(e)
             })
+
+        # Ask to continue (except for last one)
+        if i < len(benchmarks) - 1:
+            print("\n" + "="*80)
+            response = input(f"\n▶️  Premi INVIO per testare {benchmarks[i+1][0]} (o 'q' per uscire): ")
+            if response.lower() == 'q':
+                print("\n⏹️  Benchmark interrotto dall'utente")
+                break
+        else:
+            print("\n✅ Tutti i test completati!")
 
     # Sort by cost per minute (best value first)
     valid_results = [r for r in all_results if "error" not in r]
