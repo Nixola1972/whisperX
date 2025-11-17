@@ -29,6 +29,8 @@ whisperx_image = (
     .apt_install(
         "git",
         "pkg-config",           # Required for building PyAV
+        "build-essential",      # Compiler and build tools
+        "gcc",                  # C compiler
         "ffmpeg",               # FFmpeg runtime
         "libavcodec-dev",       # FFmpeg development libraries
         "libavformat-dev",      # Required for compiling PyAV from source
@@ -40,6 +42,8 @@ whisperx_image = (
     )
     # Installa wheel e setuptools PRIMA (dal PyPI standard)
     .pip_install("wheel", "setuptools")
+    # Installa PyAV PRIMA di tutto (pre-compilato o compilato con tutte le deps)
+    .pip_install("av==10.0.0")
     # Installa PyTorch 2.0.0 (versione testata da Modal)
     .pip_install(
         "torch==2.0.0",
