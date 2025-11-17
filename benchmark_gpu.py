@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 import os
 
-app = modal.App("whisperx-gpu-benchmark")
+app = modal.App("whisperx-gpu-benchmark-v2")  # Changed name to force rebuild
 
 # EXACT SAME CONFIG AS WORKING whisperx-transcription
 whisperx_image = (
