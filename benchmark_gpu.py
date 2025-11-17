@@ -42,167 +42,184 @@ whisperx_image = (
     .pip_install("numpy==1.26.4", force_build=True)
 )
 
-# GPU configurations to test
-GPU_CONFIGS = [
-    {"name": "T4", "gpu": "T4", "cost_per_hour": 0.59},
-    {"name": "L4", "gpu": "L4", "cost_per_hour": 0.80},
-    {"name": "A10G", "gpu": "A10G", "cost_per_hour": 1.10},
-    {"name": "L40S", "gpu": "L40S", "cost_per_hour": 1.95},
-    {"name": "A100-40GB", "gpu": "A100", "cost_per_hour": 2.10},
-    # Skip ultra-expensive GPUs unless specifically requested
-    # {"name": "H100", "gpu": "H100", "cost_per_hour": 3.95},
-]
 
+def run_benchmark(gpu_name: str, cost_per_hour: float, file_path: str, language: str):
+    """Core benchmark logic (runs on GPU)"""
+    import whisperx
+    import torch
+    from supabase import create_client
+    import tempfile
+    import time
 
-def create_benchmark_function(gpu_name: str, gpu_type: str, cost_per_hour: float):
-    """Create a Modal function for a specific GPU type"""
+    start_time = time.time()
 
-    @app.function(
-        image=whisperx_image,
-        gpu=gpu_type,
-        timeout=600,  # 10 minutes max
-        secrets=[modal.Secret.from_name("supabase-credentials")],
-        memory=8192,
+    print(f"\n{'='*60}")
+    print(f"BENCHMARK: {gpu_name} (${cost_per_hour}/hr)")
+    print(f"{'='*60}\n")
+
+    # Initialize Supabase
+    supabase_url = os.environ["SUPABASE_URL"]
+    supabase_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    supabase = create_client(supabase_url, supabase_key)
+
+    # Download test audio
+    print(f"[{gpu_name}] Downloading test audio...")
+    download_start = time.time()
+    response = supabase.storage.from_("audio-temp").download(file_path)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".audio") as tmp_file:
+        tmp_file.write(response)
+        audio_path = tmp_file.name
+    download_time = time.time() - download_start
+    print(f"[{gpu_name}] Download: {download_time:.2f}s")
+
+    # Check GPU
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    compute_type = "float16" if device == "cuda" else "int8"
+
+    if device == "cuda":
+        gpu_info = torch.cuda.get_device_name(0)
+        print(f"[{gpu_name}] GPU Detected: {gpu_info}")
+
+    # Load model
+    print(f"[{gpu_name}] Loading WhisperX model (medium)...")
+    model_start = time.time()
+    model = whisperx.load_model(
+        "medium",
+        device=device,
+        compute_type=compute_type,
+        language=language
     )
-    def benchmark_gpu(file_path: str, language: str = "it"):
-        import whisperx
-        import torch
-        from supabase import create_client
-        import tempfile
-        import time
+    model_time = time.time() - model_start
+    print(f"[{gpu_name}] Model load: {model_time:.2f}s")
 
-        start_time = time.time()
+    # Transcription
+    print(f"[{gpu_name}] Running transcription...")
+    transcribe_start = time.time()
+    result = model.transcribe(audio_path, batch_size=16, language=language)
+    transcribe_time = time.time() - transcribe_start
+    print(f"[{gpu_name}] Transcription: {transcribe_time:.2f}s")
 
-        print(f"\n{'='*60}")
-        print(f"BENCHMARK: {gpu_name} (${cost_per_hour}/hr)")
-        print(f"{'='*60}\n")
+    # Alignment
+    print(f"[{gpu_name}] Aligning transcription...")
+    align_start = time.time()
+    model_a, metadata = whisperx.load_align_model(
+        language_code=language,
+        device=device
+    )
+    result_aligned = whisperx.align(
+        result["segments"],
+        model_a,
+        metadata,
+        audio_path,
+        device,
+        return_char_alignments=False
+    )
+    align_time = time.time() - align_start
+    print(f"[{gpu_name}] Alignment: {align_time:.2f}s")
 
-        # Initialize Supabase
-        supabase_url = os.environ["SUPABASE_URL"]
-        supabase_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-        supabase = create_client(supabase_url, supabase_key)
+    # Skip diarization to speed up benchmark
+    diarization_time = 0
+    print(f"[{gpu_name}] Skipping diarization for benchmark speed")
 
-        # Download test audio
-        print(f"[{gpu_name}] Downloading test audio...")
-        download_start = time.time()
-        response = supabase.storage.from_("audio-temp").download(file_path)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".audio") as tmp_file:
-            tmp_file.write(response)
-            audio_path = tmp_file.name
-        download_time = time.time() - download_start
-        print(f"[{gpu_name}] Download: {download_time:.2f}s")
+    # Cleanup
+    os.remove(audio_path)
 
-        # Check GPU
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        compute_type = "float16" if device == "cuda" else "int8"
+    # Calculate metrics
+    total_time = time.time() - start_time
+    processing_time = transcribe_time + align_time + diarization_time
+    cost = (total_time / 3600) * cost_per_hour
 
-        if device == "cuda":
-            gpu_info = torch.cuda.get_device_name(0)
-            print(f"[{gpu_name}] GPU Detected: {gpu_info}")
+    # Get audio duration
+    segments = result_aligned.get("segments", [])
+    audio_duration = segments[-1]["end"] if segments else 0
+    speed_ratio = audio_duration / processing_time if processing_time > 0 else 0
 
-        # Load model
-        print(f"[{gpu_name}] Loading WhisperX model (medium)...")
-        model_start = time.time()
-        model = whisperx.load_model(
-            "medium",
-            device=device,
-            compute_type=compute_type,
-            language=language
-        )
-        model_time = time.time() - model_start
-        print(f"[{gpu_name}] Model load: {model_time:.2f}s")
+    results = {
+        "gpu_name": gpu_name,
+        "cost_per_hour": cost_per_hour,
+        "audio_duration_seconds": audio_duration,
+        "audio_duration_minutes": audio_duration / 60,
+        "timings": {
+            "download": round(download_time, 2),
+            "model_load": round(model_time, 2),
+            "transcription": round(transcribe_time, 2),
+            "alignment": round(align_time, 2),
+            "diarization": round(diarization_time, 2),
+            "processing_total": round(processing_time, 2),
+            "total_time": round(total_time, 2),
+        },
+        "cost": round(cost, 4),
+        "speed_ratio": round(speed_ratio, 2),
+        "cost_per_minute_audio": round(cost / (audio_duration / 60), 4) if audio_duration > 0 else 0,
+    }
 
-        # Transcription
-        print(f"[{gpu_name}] Running transcription...")
-        transcribe_start = time.time()
-        result = model.transcribe(audio_path, batch_size=16, language=language)
-        transcribe_time = time.time() - transcribe_start
-        print(f"[{gpu_name}] Transcription: {transcribe_time:.2f}s")
+    print(f"\n{'='*60}")
+    print(f"RESULTS: {gpu_name}")
+    print(f"{'='*60}")
+    print(f"Audio Duration: {audio_duration/60:.1f} minutes")
+    print(f"Processing Time: {processing_time:.1f}s")
+    print(f"Speed Ratio: {speed_ratio:.1f}x realtime")
+    print(f"Total Cost: ${cost:.4f}")
+    print(f"Cost per Minute: ${results['cost_per_minute_audio']:.4f}/min")
+    print(f"{'='*60}\n")
 
-        # Alignment
-        print(f"[{gpu_name}] Aligning transcription...")
-        align_start = time.time()
-        model_a, metadata = whisperx.load_align_model(
-            language_code=language,
-            device=device
-        )
-        result_aligned = whisperx.align(
-            result["segments"],
-            model_a,
-            metadata,
-            audio_path,
-            device,
-            return_char_alignments=False
-        )
-        align_time = time.time() - align_start
-        print(f"[{gpu_name}] Alignment: {align_time:.2f}s")
+    return results
 
-        # Diarization (optional, can be slow)
-        diarization_time = 0
-        try:
-            print(f"[{gpu_name}] Running speaker diarization...")
-            diarize_start = time.time()
-            diarize_model = whisperx.DiarizationPipeline(
-                use_auth_token=None,
-                device=device
-            )
-            audio = whisperx.load_audio(audio_path)
-            diarize_segments = diarize_model(audio)
-            result_diarized = whisperx.assign_word_speakers(
-                diarize_segments,
-                result_aligned
-            )
-            diarization_time = time.time() - diarize_start
-            print(f"[{gpu_name}] Diarization: {diarization_time:.2f}s")
-        except Exception as e:
-            print(f"[{gpu_name}] Diarization skipped: {e}")
 
-        # Cleanup
-        os.remove(audio_path)
+# Define separate functions for each GPU type
+@app.function(
+    image=whisperx_image,
+    gpu="T4",
+    timeout=600,
+    secrets=[modal.Secret.from_name("supabase-credentials")],
+    memory=8192,
+)
+def benchmark_t4(file_path: str, language: str):
+    return run_benchmark("T4", 0.59, file_path, language)
 
-        # Calculate metrics
-        total_time = time.time() - start_time
-        processing_time = transcribe_time + align_time + diarization_time
-        cost = (total_time / 3600) * cost_per_hour
 
-        # Get audio duration
-        segments = result_aligned.get("segments", [])
-        audio_duration = segments[-1]["end"] if segments else 0
-        speed_ratio = audio_duration / processing_time if processing_time > 0 else 0
+@app.function(
+    image=whisperx_image,
+    gpu="L4",
+    timeout=600,
+    secrets=[modal.Secret.from_name("supabase-credentials")],
+    memory=8192,
+)
+def benchmark_l4(file_path: str, language: str):
+    return run_benchmark("L4", 0.80, file_path, language)
 
-        results = {
-            "gpu_name": gpu_name,
-            "gpu_type": gpu_type,
-            "cost_per_hour": cost_per_hour,
-            "audio_duration_seconds": audio_duration,
-            "audio_duration_minutes": audio_duration / 60,
-            "timings": {
-                "download": round(download_time, 2),
-                "model_load": round(model_time, 2),
-                "transcription": round(transcribe_time, 2),
-                "alignment": round(align_time, 2),
-                "diarization": round(diarization_time, 2),
-                "processing_total": round(processing_time, 2),
-                "total_time": round(total_time, 2),
-            },
-            "cost": round(cost, 4),
-            "speed_ratio": round(speed_ratio, 2),
-            "cost_per_minute_audio": round(cost / (audio_duration / 60), 4) if audio_duration > 0 else 0,
-        }
 
-        print(f"\n{'='*60}")
-        print(f"RESULTS: {gpu_name}")
-        print(f"{'='*60}")
-        print(f"Audio Duration: {audio_duration/60:.1f} minutes")
-        print(f"Processing Time: {processing_time:.1f}s")
-        print(f"Speed Ratio: {speed_ratio:.1f}x realtime")
-        print(f"Total Cost: ${cost:.4f}")
-        print(f"Cost per Minute: ${results['cost_per_minute_audio']:.4f}/min")
-        print(f"{'='*60}\n")
+@app.function(
+    image=whisperx_image,
+    gpu="A10G",
+    timeout=600,
+    secrets=[modal.Secret.from_name("supabase-credentials")],
+    memory=8192,
+)
+def benchmark_a10g(file_path: str, language: str):
+    return run_benchmark("A10G", 1.10, file_path, language)
 
-        return results
 
-    return benchmark_gpu
+@app.function(
+    image=whisperx_image,
+    gpu="L40S",
+    timeout=600,
+    secrets=[modal.Secret.from_name("supabase-credentials")],
+    memory=8192,
+)
+def benchmark_l40s(file_path: str, language: str):
+    return run_benchmark("L40S", 1.95, file_path, language)
+
+
+@app.function(
+    image=whisperx_image,
+    gpu="A100",
+    timeout=600,
+    secrets=[modal.Secret.from_name("supabase-credentials")],
+    memory=8192,
+)
+def benchmark_a100(file_path: str, language: str):
+    return run_benchmark("A100-40GB", 2.10, file_path, language)
 
 
 @app.local_entrypoint()
@@ -224,31 +241,32 @@ def main(
     print("="*60)
     print(f"Test file: {file_path}")
     print(f"Language: {language}")
-    print(f"Testing {len(GPU_CONFIGS)} GPU configurations...")
+    print(f"Testing 5 GPU configurations...")
     print("="*60 + "\n")
+
+    # GPU benchmarks with their functions
+    benchmarks = [
+        ("T4", benchmark_t4),
+        ("L4", benchmark_l4),
+        ("A10G", benchmark_a10g),
+        ("L40S", benchmark_l40s),
+        ("A100-40GB", benchmark_a100),
+    ]
 
     all_results = []
 
-    for config in GPU_CONFIGS:
-        print(f"\n🚀 Starting benchmark for {config['name']}...")
+    for gpu_name, benchmark_func in benchmarks:
+        print(f"\n🚀 Starting benchmark for {gpu_name}...")
 
         try:
-            # Create and run the benchmark function
-            benchmark_func = create_benchmark_function(
-                config["name"],
-                config["gpu"],
-                config["cost_per_hour"]
-            )
-
             result = benchmark_func.remote(file_path, language)
             all_results.append(result)
-
-            print(f"✅ {config['name']} completed successfully\n")
+            print(f"✅ {gpu_name} completed successfully\n")
 
         except Exception as e:
-            print(f"❌ {config['name']} failed: {e}\n")
+            print(f"❌ {gpu_name} failed: {e}\n")
             all_results.append({
-                "gpu_name": config["name"],
+                "gpu_name": gpu_name,
                 "error": str(e)
             })
 
