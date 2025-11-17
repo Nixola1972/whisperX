@@ -40,7 +40,7 @@ whisperx_image = (
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"TORCH_VERSION_FIX": "v5"})  # Cache invalidation - changed to force rebuild
+    .env({"TORCH_VERSION_FIX": "v6"})  # Cache invalidation
     # Installa wheel e setuptools PRIMA (dal PyPI standard)
     .pip_install("wheel", "setuptools")
     # FORZA NumPy 1.26.4 (ultima versione 1.x stabile)
@@ -56,26 +56,11 @@ whisperx_image = (
         "matplotlib",  # Required by pyannote.audio
         "google-genai",  # Gemini RAG for Q&A
     )
-    # Poi DOWNGRADE PyTorch a 1.13.1 (compatibile con pyannote.audio in whisperx v3.2.0)
+    # Use torchaudio 2.0.2 - last version with set_audio_backend() method
     .pip_install(
-        "torch==1.13.1",
-        "torchaudio==0.13.1",
-        index_url="https://download.pytorch.org/whl/cu117",
-    )
-    # FORZA NumPy 1.26.4 DOPO per evitare che venga sovrascritta con NumPy 2.x
-    .pip_install("numpy==1.26.4", force_build=True)
-    # Install sitecustomize.py for automatic torchaudio patching
-    # This runs automatically when Python starts, BEFORE any imports
-    .run_commands(
-        "SITEDIR=$(python3 -c 'import site; print(site.getsitepackages()[0])') && "
-        "echo 'Site-packages dir:' $SITEDIR"
-    )
-    .copy_local_file("sitecustomize.py", "/tmp/sitecustomize.py")
-    .run_commands(
-        "SITEDIR=$(python3 -c 'import site; print(site.getsitepackages()[0])') && "
-        "cp /tmp/sitecustomize.py $SITEDIR/sitecustomize.py && "
-        "echo '✅ Installed sitecustomize.py to' $SITEDIR && "
-        "ls -la $SITEDIR/sitecustomize.py"
+        "torch==2.0.1",
+        "torchaudio==2.0.2",
+        index_url="https://download.pytorch.org/whl/cu118",
     )
 )
 
