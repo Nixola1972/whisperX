@@ -44,6 +44,12 @@ whisperx_image = (
         "supabase",
         "matplotlib",
     )
+    # Patch pyannote.audio to remove problematic set_audio_backend() call
+    .run_commands(
+        "sed -i 's/torchaudio.set_audio_backend/#torchaudio.set_audio_backend/g' "
+        "/usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py && "
+        "echo '✅ Patched pyannote.audio/core/io.py'"
+    )
 )
 
 
