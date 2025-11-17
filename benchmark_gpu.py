@@ -43,20 +43,23 @@ whisperx_image = (
         "torchaudio==0.13.1",
         index_url="https://download.pytorch.org/whl/cu117",
     )
+    # Apply monkey-patch to fix torchaudio.set_audio_backend() compatibility
+    .run_commands(
+        "python3 -c \""
+        "import importlib.util; "
+        "spec = importlib.util.find_spec('torchaudio'); "
+        "torchaudio_init = spec.origin; "
+        "with open(torchaudio_init, 'a') as f: "
+        "    f.write('\\n\\n# Monkey-patch for pyannote.audio compatibility\\n'); "
+        "    f.write('def set_audio_backend(backend):\\n'); "
+        "    f.write('    pass  # No-op: torchaudio 2.0+ auto-selects backend\\n'); "
+        "print(f'Patched {torchaudio_init}')\""
+    )
 )
 
 
 def run_benchmark(gpu_name: str, cost_per_hour: float, file_path: str, language: str):
     """Core benchmark logic (runs on GPU)"""
-    # Monkey-patch torchaudio to fix pyannote.audio compatibility
-    import torchaudio
-    if not hasattr(torchaudio, 'set_audio_backend'):
-        # torchaudio 2.0+ removed this method, but pyannote.audio still uses it
-        # Add a no-op implementation to prevent AttributeError
-        def _set_audio_backend(backend):
-            pass  # In torchaudio 2.0+, backend is automatically selected
-        torchaudio.set_audio_backend = _set_audio_backend
-
     import whisperx
     import torch
     from supabase import create_client

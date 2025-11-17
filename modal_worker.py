@@ -64,6 +64,18 @@ whisperx_image = (
     )
     # FORZA NumPy 1.26.4 DOPO per evitare che venga sovrascritta con NumPy 2.x
     .pip_install("numpy==1.26.4", force_build=True)
+    # Apply monkey-patch to fix torchaudio.set_audio_backend() compatibility
+    .run_commands(
+        "python3 -c \""
+        "import importlib.util; "
+        "spec = importlib.util.find_spec('torchaudio'); "
+        "torchaudio_init = spec.origin; "
+        "with open(torchaudio_init, 'a') as f: "
+        "    f.write('\\n\\n# Monkey-patch for pyannote.audio compatibility\\n'); "
+        "    f.write('def set_audio_backend(backend):\\n'); "
+        "    f.write('    pass  # No-op: torchaudio 2.0+ auto-selects backend\\n'); "
+        "print(f'Patched {torchaudio_init}')\""
+    )
 )
 
 # Secrets (configured via: modal secret create)
@@ -112,15 +124,6 @@ def transcribe_audio(
     Returns:
         dict: Transcription results with segments and speakers
     """
-    # Monkey-patch torchaudio to fix pyannote.audio compatibility
-    import torchaudio
-    if not hasattr(torchaudio, 'set_audio_backend'):
-        # torchaudio 2.0+ removed this method, but pyannote.audio still uses it
-        # Add a no-op implementation to prevent AttributeError
-        def _set_audio_backend(backend):
-            pass  # In torchaudio 2.0+, backend is automatically selected
-        torchaudio.set_audio_backend = _set_audio_backend
-
     import whisperx
     import torch
     from supabase import create_client
