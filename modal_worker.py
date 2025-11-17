@@ -29,21 +29,15 @@ whisperx_image = (
     .apt_install(
         "git",
         "pkg-config",           # Required for building PyAV
-        "build-essential",      # Compiler and build tools
-        "gcc",                  # C compiler
         "ffmpeg",               # FFmpeg runtime
         "libavcodec-dev",       # FFmpeg development libraries
         "libavformat-dev",      # Required for compiling PyAV from source
         "libavutil-dev",        # (PyAV is a dependency of ffmpeg-python)
-        "libavdevice-dev",      # Required for PyAV
-        "libavfilter-dev",      # Required for PyAV
         "libswscale-dev",
         "libswresample-dev"
     )
     # Installa wheel e setuptools PRIMA (dal PyPI standard)
     .pip_install("wheel", "setuptools")
-    # Installa PyAV PRIMA di tutto (pre-compilato o compilato con tutte le deps)
-    .pip_install("av==10.0.0")
     # Installa PyTorch 2.0.0 (versione testata da Modal)
     .pip_install(
         "torch==2.0.0",
@@ -68,7 +62,7 @@ supabase_secret = modal.Secret.from_name("supabase-credentials")
 
 @app.function(
     image=whisperx_image,
-    gpu="any",  # Try to get any available GPU, fallback to CPU if none available
+    gpu="any",  # Try to get any available GPU
     timeout=3600,  # 1 hour max
     secrets=[supabase_secret],
     memory=16384,  # 16GB RAM
@@ -312,7 +306,7 @@ def transcribe_webhook():
 
     web_app = FastAPI()
 
-    # Configure CORS to allow requests from your Next.js app
+    # Add CORS middleware to allow browser requests
     web_app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],  # In production, replace with your domain
