@@ -63,7 +63,7 @@ whisperx_image = (
     )
     # CRITICAL: Force numpy 1.x AFTER WhisperX installation
     # (pyannote.audio may try to install numpy 2.x)
-    .pip_install("numpy==1.26.4", force=True)
+    .pip_install("numpy==1.26.4")
 )
 
 # Supabase secrets (configured via: modal secret create supabase-credentials)
