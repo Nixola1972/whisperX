@@ -3,13 +3,12 @@
 Simple GPU test script using the WORKING whisperx-transcription container
 
 Usage:
-    python test_gpu_simple.py audio.mp3 --gpu T4
-    python test_gpu_simple.py audio.mp3 --gpu A10G --language it
+    modal run test_gpu_simple.py --audio-file audio.mp3 --gpu T4
+    modal run test_gpu_simple.py --audio-file audio.mp3 --gpu A10G --language it
 """
 
 import modal
 import sys
-import time
 from pathlib import Path
 
 # GPU configurations
@@ -61,110 +60,119 @@ whisperx_image = (
     .pip_install("numpy<2.0", force_build=True)
 )
 
-volume = modal.Volume.from_name("audio-files", create_if_missing=True)
-
 
 @app.function(
     image=whisperx_image,
-    volumes={"/data": volume},
     timeout=3600,
 )
-def test_gpu(gpu_type: str, audio_path: str, language: str = None):
+def test_gpu(gpu_type: str, audio_bytes: bytes, filename: str, language: str = None):
     """Test transcription on specific GPU"""
     import whisperx
     import torch
     import time
+    import tempfile
+    import os
 
     start_time = time.time()
 
     print(f"\n{'='*70}")
     print(f"GPU TEST: {gpu_type}")
-    print(f"File: {audio_path}")
+    print(f"File: {filename}")
     print(f"Language: {language or 'auto-detect'}")
     print(f"{'='*70}\n")
 
-    # Check GPU
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    if device == "cuda":
-        gpu_name = torch.cuda.get_device_name(0)
-        print(f"✅ GPU detected: {gpu_name}")
-        print(f"   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB\n")
-    else:
-        print("❌ No GPU detected!\n")
-        return {"error": "No GPU available"}
+    # Save audio to temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(filename).suffix) as tmp:
+        tmp.write(audio_bytes)
+        audio_path = tmp.name
 
-    # Load model
-    print("📥 Loading WhisperX model (medium)...")
-    load_start = time.time()
-    model = whisperx.load_model(
-        "medium",
-        device=device,
-        compute_type="float16",
-        language=language
-    )
-    load_time = time.time() - load_start
-    print(f"   Model loaded in {load_time:.2f}s\n")
+    try:
+        # Check GPU
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        if device == "cuda":
+            gpu_name = torch.cuda.get_device_name(0)
+            print(f"✅ GPU detected: {gpu_name}")
+            print(f"   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB\n")
+        else:
+            print("❌ No GPU detected!\n")
+            return {"error": "No GPU available"}
 
-    # Transcribe
-    print("🎤 Transcribing audio...")
-    transcribe_start = time.time()
-    audio = whisperx.load_audio(audio_path)
-    result = model.transcribe(audio, batch_size=16, language=language)
-    transcribe_time = time.time() - transcribe_start
+        # Load model
+        print("📥 Loading WhisperX model (medium)...")
+        load_start = time.time()
+        model = whisperx.load_model(
+            "medium",
+            device=device,
+            compute_type="float16",
+            language=language
+        )
+        load_time = time.time() - load_start
+        print(f"   Model loaded in {load_time:.2f}s\n")
 
-    detected_language = result.get("language", language or "unknown")
-    print(f"   Language: {detected_language}")
-    print(f"   Transcription: {transcribe_time:.2f}s\n")
+        # Transcribe
+        print("🎤 Transcribing audio...")
+        transcribe_start = time.time()
+        audio = whisperx.load_audio(audio_path)
+        result = model.transcribe(audio, batch_size=16, language=language)
+        transcribe_time = time.time() - transcribe_start
 
-    # Align
-    print("🔄 Aligning transcription...")
-    align_start = time.time()
-    model_a, metadata = whisperx.load_align_model(
-        language_code=detected_language,
-        device=device
-    )
-    result = whisperx.align(
-        result["segments"],
-        model_a,
-        metadata,
-        audio,
-        device,
-        return_char_alignments=False
-    )
-    align_time = time.time() - align_start
-    print(f"   Alignment: {align_time:.2f}s\n")
+        detected_language = result.get("language", language or "unknown")
+        print(f"   Language: {detected_language}")
+        print(f"   Transcription: {transcribe_time:.2f}s\n")
 
-    # Calculate stats
-    total_time = time.time() - start_time
-    audio_duration = len(audio) / 16000  # 16kHz sample rate
-    speed_ratio = audio_duration / transcribe_time
+        # Align
+        print("🔄 Aligning transcription...")
+        align_start = time.time()
+        model_a, metadata = whisperx.load_align_model(
+            language_code=detected_language,
+            device=device
+        )
+        result = whisperx.align(
+            result["segments"],
+            model_a,
+            metadata,
+            audio,
+            device,
+            return_char_alignments=False
+        )
+        align_time = time.time() - align_start
+        print(f"   Alignment: {align_time:.2f}s\n")
 
-    # Calculate cost (rough estimate)
-    cost = GPU_CONFIGS.get(gpu_type, {}).get("cost_per_hour", 0)
-    estimated_cost = (total_time / 3600) * cost
+        # Calculate stats
+        total_time = time.time() - start_time
+        audio_duration = len(audio) / 16000  # 16kHz sample rate
+        speed_ratio = audio_duration / transcribe_time
 
-    print(f"{'='*70}")
-    print(f"RESULTS:")
-    print(f"  Audio duration: {audio_duration:.1f}s ({audio_duration/60:.1f} min)")
-    print(f"  Total time: {total_time:.1f}s")
-    print(f"  Speed: {speed_ratio:.1f}x realtime")
-    print(f"  Estimated cost: ${estimated_cost:.4f}")
-    print(f"  Cost per minute: ${estimated_cost / (audio_duration/60):.4f}")
-    print(f"{'='*70}\n")
+        # Calculate cost (rough estimate)
+        cost = GPU_CONFIGS.get(gpu_type, {}).get("cost_per_hour", 0)
+        estimated_cost = (total_time / 3600) * cost
 
-    return {
-        "gpu": gpu_type,
-        "audio_duration": audio_duration,
-        "load_time": load_time,
-        "transcribe_time": transcribe_time,
-        "align_time": align_time,
-        "total_time": total_time,
-        "speed_ratio": speed_ratio,
-        "estimated_cost": estimated_cost,
-        "cost_per_minute": estimated_cost / (audio_duration/60),
-        "language": detected_language,
-        "segments_count": len(result["segments"])
-    }
+        print(f"{'='*70}")
+        print(f"RESULTS:")
+        print(f"  Audio duration: {audio_duration:.1f}s ({audio_duration/60:.1f} min)")
+        print(f"  Total time: {total_time:.1f}s")
+        print(f"  Speed: {speed_ratio:.1f}x realtime")
+        print(f"  Estimated cost: ${estimated_cost:.4f}")
+        print(f"  Cost per minute: ${estimated_cost / (audio_duration/60):.4f}")
+        print(f"{'='*70}\n")
+
+        return {
+            "gpu": gpu_type,
+            "audio_duration": audio_duration,
+            "load_time": load_time,
+            "transcribe_time": transcribe_time,
+            "align_time": align_time,
+            "total_time": total_time,
+            "speed_ratio": speed_ratio,
+            "estimated_cost": estimated_cost,
+            "cost_per_minute": estimated_cost / (audio_duration/60),
+            "language": detected_language,
+            "segments_count": len(result["segments"])
+        }
+    finally:
+        # Cleanup temp file
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
 
 
 @app.local_entrypoint()
@@ -188,25 +196,24 @@ def main(audio_file: str, gpu: str = "A10G", language: str = None):
         print(f"   Valid options: {', '.join(GPU_CONFIGS.keys())}")
         sys.exit(1)
 
-    print(f"\n🚀 Testing {gpu} with {audio_file}")
+    print(f"\n🚀 Testing {gpu} with {Path(audio_file).name}")
     print(f"   Cost: ${GPU_CONFIGS[gpu]['cost_per_hour']:.2f}/hour\n")
 
-    # Upload file to volume
-    file_name = Path(audio_file).name
-    volume_path = f"/data/{file_name}"
-
-    print(f"📤 Uploading {file_name} to Modal volume...")
-    volume.put_file(audio_file, volume_path)
-    print(f"   ✅ Uploaded to {volume_path}\n")
+    # Read file
+    print(f"📤 Reading audio file...")
+    with open(audio_file, "rb") as f:
+        audio_bytes = f.read()
+    print(f"   ✅ Read {len(audio_bytes) / 1024 / 1024:.1f} MB\n")
 
     # Create function with specific GPU
     test_func = test_gpu.with_options(gpu=GPU_CONFIGS[gpu]["gpu"])
 
     # Run test
-    result = test_func.remote(gpu, volume_path, language)
+    result = test_func.remote(gpu, audio_bytes, Path(audio_file).name, language)
 
     if "error" in result:
         print(f"❌ Test failed: {result['error']}")
     else:
         print(f"\n✅ Test completed successfully!")
         print(f"   Check Modal dashboard for detailed logs")
+        print(f"   https://modal.com/apps")
