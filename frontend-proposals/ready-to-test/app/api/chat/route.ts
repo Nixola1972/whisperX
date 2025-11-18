@@ -17,11 +17,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get transcript from database to retrieve geminiDocumentId
+    // Get transcript from database with full segments
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { data: transcript, error } = await supabase
       .from('transcripts')
-      .select('geminiDocumentId, fileName, language')
+      .select('*')
       .eq('id', transcriptId)
       .single();
 
@@ -32,9 +32,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!transcript.geminiDocumentId) {
+    // Build full transcript text with speaker labels
+    const segments = transcript.segments || [];
+    let fullText = '';
+
+    for (const seg of segments) {
+      const speaker = seg.speaker ? `[${seg.speaker}]` : '';
+      const text = seg.text || '';
+      fullText += `${speaker} ${text}\n`;
+    }
+
+    if (!fullText.trim()) {
       return NextResponse.json(
-        { error: 'Transcript not indexed in Gemini. Try re-processing the file.' },
+        { error: 'Transcript is empty' },
         { status: 400 }
       );
     }
@@ -43,23 +53,18 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    // Query using the uploaded file directly (not File Search Store)
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              fileData: {
-                mimeType: 'text/plain',
-                fileUri: transcript.geminiDocumentId,
-              },
-            },
-            { text: question },
-          ],
-        },
-      ],
-    });
+    // Build the prompt with transcript context
+    const prompt = `You are an AI assistant that answers questions about the following transcript.
+
+TRANSCRIPT:
+${fullText}
+
+USER QUESTION: ${question}
+
+Please provide a detailed and accurate answer based ONLY on the information in the transcript above. If the transcript doesn't contain information to answer the question, say so clearly.`;
+
+    // Query Gemini with transcript text in prompt
+    const result = await model.generateContent(prompt);
 
     const response = result.response;
     const answer = response.text();
