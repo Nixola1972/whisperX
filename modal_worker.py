@@ -57,6 +57,7 @@ whisperx_image = (
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ctranslate2==4.4.0",
+        "matplotlib",  # Required by pyannote.audio
         "supabase",
         "fastapi",
         "pydantic",
