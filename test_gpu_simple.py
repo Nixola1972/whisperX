@@ -61,11 +61,14 @@ whisperx_image = (
 )
 
 
-@app.function(
-    image=whisperx_image,
-    timeout=3600,
-)
-def test_gpu(gpu_type: str, audio_bytes: bytes, filename: str, language: str = None):
+def create_test_function(gpu_name: str):
+    """Create test function with specific GPU"""
+    @app.function(
+        image=whisperx_image,
+        gpu=gpu_name,
+        timeout=3600,
+    )
+    def test_gpu(gpu_type: str, audio_bytes: bytes, filename: str, language: str = None):
     """Test transcription on specific GPU"""
     import whisperx
     import torch
@@ -174,6 +177,8 @@ def test_gpu(gpu_type: str, audio_bytes: bytes, filename: str, language: str = N
         if os.path.exists(audio_path):
             os.remove(audio_path)
 
+    return test_gpu
+
 
 @app.local_entrypoint()
 def main(audio_file: str, gpu: str = "A10G", language: str = None):
@@ -206,7 +211,7 @@ def main(audio_file: str, gpu: str = "A10G", language: str = None):
     print(f"   ✅ Read {len(audio_bytes) / 1024 / 1024:.1f} MB\n")
 
     # Create function with specific GPU
-    test_func = test_gpu.with_options(gpu=GPU_CONFIGS[gpu]["gpu"])
+    test_func = create_test_function(GPU_CONFIGS[gpu]["gpu"])
 
     # Run test
     result = test_func.remote(gpu, audio_bytes, Path(audio_file).name, language)
