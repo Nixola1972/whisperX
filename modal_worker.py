@@ -58,6 +58,7 @@ whisperx_image = (
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ctranslate2==4.4.0",
         "matplotlib",  # Required by pyannote.audio
+        "google-generativeai",  # For Gemini File Search RAG
         "supabase",
         "fastapi",
         "pydantic",
@@ -67,15 +68,16 @@ whisperx_image = (
     .pip_install("numpy==1.26.4")
 )
 
-# Supabase secrets (configured via: modal secret create supabase-credentials)
+# Secrets (configured via: modal secret create)
 supabase_secret = modal.Secret.from_name("supabase-credentials")
+gemini_secret = modal.Secret.from_name("gemini-api")
 
 
 @app.function(
     image=whisperx_image,
     gpu="A10G",  # NVIDIA A10G GPU (24GB VRAM)
     timeout=3600,  # 1 hour max
-    secrets=[supabase_secret],
+    secrets=[supabase_secret, gemini_secret],
     memory=16384,  # 16GB RAM
     env={
         "LD_LIBRARY_PATH": "/usr/local/cuda/lib64:/usr/local/lib/python3.11/site-packages/torch/lib"
@@ -245,9 +247,46 @@ def transcribe_audio(
             }
         )
 
+        # Upload to Gemini File Search for RAG (Q&A feature)
+        gemini_document_id = None
+        try:
+            print("[INFO] Uploading transcript to Gemini File Search for RAG...")
+            import google.generativeai as genai
+
+            gemini_api_key = os.environ.get("GEMINI_API_KEY")
+            if not gemini_api_key:
+                print("[WARNING] GEMINI_API_KEY not found, skipping RAG upload")
+            else:
+                genai.configure(api_key=gemini_api_key)
+
+                # Create temporary file for upload
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as tmp:
+                    # Write transcript with speaker labels
+                    for seg in segments_json:
+                        speaker = seg.get('speaker', 'UNKNOWN')
+                        text = seg.get('text', '')
+                        tmp.write(f"[{speaker}]: {text}\n")
+                    tmp_path = tmp.name
+
+                # Upload to Gemini
+                uploaded_file = genai.upload_file(
+                    path=tmp_path,
+                    display_name=f"Transcript_{transcript_id}"
+                )
+
+                gemini_document_id = uploaded_file.name
+                print(f"[INFO] ✓ Uploaded to Gemini File Search: {gemini_document_id}")
+
+                # Cleanup temp file
+                os.remove(tmp_path)
+
+        except Exception as e:
+            print(f"[WARNING] Failed to upload to Gemini File Search: {e}")
+            print("[INFO] Continuing without RAG (Q&A feature will be disabled)")
+
         # Update database record
         print("[INFO] Updating database...")
-        supabase.table("transcripts").update({
+        update_data = {
             "status": "completed",
             "language": detected_language,
             "durationSeconds": int(duration_seconds),
@@ -255,7 +294,13 @@ def transcribe_audio(
             "transcriptText": full_text[:5000],  # Store first 5000 chars in DB
             "segments": segments_json,
             "speakers": speakers_data
-        }).eq("id", transcript_id).execute()
+        }
+
+        # Add geminiDocumentId if upload succeeded
+        if gemini_document_id:
+            update_data["geminiDocumentId"] = gemini_document_id
+
+        supabase.table("transcripts").update(update_data).eq("id", transcript_id).execute()
 
         # Cleanup temporary file
         os.remove(audio_path)
