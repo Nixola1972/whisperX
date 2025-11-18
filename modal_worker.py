@@ -26,6 +26,7 @@ tag = f"{cuda_version}-{flavor}-{operating_sys}"
 
 whisperx_image = (
     modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11")
+    .run_commands("apt-get update")  # Update package lists
     .apt_install(
         "git",
         "pkg-config",           # Required for building PyAV
