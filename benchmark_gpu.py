@@ -39,6 +39,8 @@ whisperx_image = (
         "supabase",
         "matplotlib",
     )
+    # CRITICAL: Force numpy<2.0 AFTER whisperx to prevent NumPy 2.x incompatibility
+    .pip_install("numpy<2.0", force_build=True)
 )
 
 

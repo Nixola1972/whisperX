@@ -28,32 +28,23 @@ whisperx_image = (
     modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11")
     .apt_install(
         "git",
-        "build-essential",      # C/C++ compilers (gcc, g++, make) - needed to build PyAV
-        "clang",                # Clang compiler - PyAV specifically looks for this
-        "pkg-config",           # Required for building PyAV
-        "ffmpeg",               # FFmpeg runtime
-        "libavcodec-dev",       # FFmpeg development libraries
-        "libavformat-dev",      # Required for compiling PyAV from source
-        "libavutil-dev",        # (PyAV is a dependency of ffmpeg-python)
-        "libavdevice-dev",      # Required for PyAV 11.x
-        "libavfilter-dev",      # Required for PyAV 11.x
+        "pkg-config",
+        "ffmpeg",
+        "libavcodec-dev",
+        "libavformat-dev",
+        "libavutil-dev",
+        "libavdevice-dev",  # Required for PyAV 11.x
+        "libavfilter-dev",  # Required for PyAV 11.x
         "libswscale-dev",
         "libswresample-dev"
     )
-    .env({"BUILD_VERSION": "v8_patch_pyannote"})  # Force rebuild with new cache key
-    .run_commands("echo '🔨 Building image v8 with pyannote.audio patch'")
-    # Installa wheel e setuptools PRIMA (dal PyPI standard)
     .pip_install("wheel", "setuptools")
-    # FORZA NumPy 1.26.4 (ultima versione 1.x stabile)
-    .pip_install("numpy==1.26.4")
-    # Install torch/torchaudio FIRST with specific versions
-    # torchaudio 2.0.2 is the last version with set_audio_backend() method
     .pip_install(
-        "torch==2.0.1",
-        "torchaudio==2.0.2",
+        "torch==2.0.0",
+        "torchaudio==2.0.0",
+        "numpy<2.0",
         index_url="https://download.pytorch.org/whl/cu118",
     )
-    # Then install WhisperX 3.2.0 (will use already-installed torch/torchaudio)
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
         "ffmpeg-python",
@@ -61,17 +52,11 @@ whisperx_image = (
         "supabase",
         "fastapi",
         "pydantic",
-        "matplotlib",  # Required by pyannote.audio
-        "google-genai",  # Gemini RAG for Q&A
+        "matplotlib",
+        "google-genai",
     )
-    # Patch pyannote.audio to remove problematic set_audio_backend() call
-    .run_commands(
-        "echo '🔧 Patching pyannote.audio/core/io.py...' && "
-        "sed -i 's/torchaudio\\.set_audio_backend(\"soundfile\")/# torchaudio.set_audio_backend(\"soundfile\") - PATCHED/g' "
-        "/usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py && "
-        "grep -n 'PATCHED' /usr/local/lib/python3.11/site-packages/pyannote/audio/core/io.py && "
-        "echo '✅ Successfully patched pyannote.audio/core/io.py'"
-    )
+    # CRITICAL: Force numpy<2.0 AFTER whisperx to prevent NumPy 2.x incompatibility
+    .pip_install("numpy<2.0", force_build=True)
 )
 
 # Secrets (configured via: modal secret create)
