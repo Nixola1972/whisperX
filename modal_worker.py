@@ -25,7 +25,7 @@ operating_sys = "ubuntu22.04"
 tag = f"{cuda_version}-{flavor}-{operating_sys}"
 
 whisperx_image = (
-    modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11", force_build=True)
+    modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python="3.11")
     .run_commands("apt-get update")  # Update package lists
     .apt_install(
         "git",
@@ -61,6 +61,9 @@ whisperx_image = (
         "fastapi",
         "pydantic",
     )
+    # CRITICAL: Force numpy 1.x AFTER WhisperX installation
+    # (pyannote.audio may try to install numpy 2.x)
+    .pip_install("numpy==1.26.4", force=True)
 )
 
 # Supabase secrets (configured via: modal secret create supabase-credentials)
