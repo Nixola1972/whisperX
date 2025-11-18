@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { StatusBadge } from './StatusBadge';
 import { ExportDropdown } from './ExportDropdown';
+import { ChatPanel } from '../ChatPanel';
+import { TranslationModal } from '../TranslationModal';
+import { SummarizationModal } from '../SummarizationModal';
 import { formatDuration, formatDate, formatFileSize } from '../../utils/formatters';
 import type { Transcription } from '../../types';
 
@@ -22,6 +25,9 @@ export function TranscriptionTable({
   const [sortBy, setSortBy] = useState<'date' | 'duration' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'completed' | 'processing' | 'failed'>('all');
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [activeTranslationId, setActiveTranslationId] = useState<string | null>(null);
+  const [activeSummarizationId, setActiveSummarizationId] = useState<string | null>(null);
 
   // Sort and filter
   const filteredTranscriptions = transcriptions
@@ -236,11 +242,45 @@ export function TranscriptionTable({
                 key={transcription.id}
                 transcription={transcription}
                 onDelete={onDelete}
+                onOpenChat={() => setActiveChatId(transcription.id)}
+                isChatActive={activeChatId === transcription.id}
+                onOpenTranslation={() => setActiveTranslationId(transcription.id)}
+                onOpenSummarization={() => setActiveSummarizationId(transcription.id)}
               />
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Chat Panel */}
+      {activeChatId && (
+        <div className="lg:col-span-1 h-[600px]">
+          <ChatPanel
+            transcriptId={activeChatId}
+            fileName={transcriptions.find(t => t.id === activeChatId)?.fileName || ''}
+            onClose={() => setActiveChatId(null)}
+          />
+        </div>
+      )}
+
+      {/* Translation Modal */}
+      {activeTranslationId && (
+        <TranslationModal
+          transcriptId={activeTranslationId}
+          fileName={transcriptions.find(t => t.id === activeTranslationId)?.fileName || ''}
+          currentLanguage={transcriptions.find(t => t.id === activeTranslationId)?.language || ''}
+          onClose={() => setActiveTranslationId(null)}
+        />
+      )}
+
+      {/* Summarization Modal */}
+      {activeSummarizationId && (
+        <SummarizationModal
+          transcriptId={activeSummarizationId}
+          fileName={transcriptions.find(t => t.id === activeSummarizationId)?.fileName || ''}
+          onClose={() => setActiveSummarizationId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -248,9 +288,17 @@ export function TranscriptionTable({
 function TranscriptionRow({
   transcription,
   onDelete,
+  onOpenChat,
+  isChatActive,
+  onOpenTranslation,
+  onOpenSummarization,
 }: {
   transcription: Transcription;
   onDelete: (id: string) => Promise<void>;
+  onOpenChat: () => void;
+  isChatActive: boolean;
+  onOpenTranslation: () => void;
+  onOpenSummarization: () => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -368,6 +416,64 @@ function TranscriptionRow({
       </td>
       <td className="px-4 py-4">
         <div className="flex items-center justify-end gap-2">
+          {/* Chat button - only for completed transcriptions with Gemini */}
+          {transcription.status === 'completed' && transcription.geminiDocumentId && (
+            <button
+              onClick={onOpenChat}
+              className={`p-2 rounded-lg transition-colors ${
+                isChatActive
+                  ? 'bg-violet-500 text-white'
+                  : 'hover:bg-zinc-800 text-zinc-400 hover:text-violet-400'
+              }`}
+              title="Chat Q&A"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                />
+              </svg>
+            </button>
+          )}
+
+          {/* Translation button - only for completed transcriptions */}
+          {transcription.status === 'completed' && (
+            <button
+              onClick={onOpenTranslation}
+              className="p-2 rounded-lg transition-colors hover:bg-zinc-800 text-zinc-400 hover:text-blue-400"
+              title="Traduci"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                />
+              </svg>
+            </button>
+          )}
+
+          {/* Summarization button - only for completed transcriptions */}
+          {transcription.status === 'completed' && (
+            <button
+              onClick={onOpenSummarization}
+              className="p-2 rounded-lg transition-colors hover:bg-zinc-800 text-zinc-400 hover:text-emerald-400"
+              title="Riassunto"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+          )}
+
           {transcription.status === 'completed' && (
             <ExportDropdown transcription={transcription} />
           )}
