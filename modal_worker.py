@@ -29,6 +29,7 @@ whisperx_image = (
     .run_commands("apt-get update")  # Update package lists
     .apt_install(
         "git",
+        "build-essential",      # C/C++ compiler (gcc, g++, make) for PyAV compilation
         "pkg-config",           # Required for building PyAV
         "ffmpeg",               # FFmpeg runtime
         "libavcodec-dev",       # FFmpeg development libraries
