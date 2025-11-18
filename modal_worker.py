@@ -48,10 +48,12 @@ whisperx_image = (
         "numpy<2.0",
         index_url="https://download.pytorch.org/whl/cu118",
     )
+    # Installa PyAV separatamente PRIMA (per evitare errori di build)
+    .pip_install("av==11.0.0")
     # Installa WhisperX 3.2.0 + ctranslate2 4.4.0 (stack testato)
+    # ffmpeg-python rimosso perché causa problemi con PyAV
     .pip_install(
         "git+https://github.com/m-bain/whisperx.git@v3.2.0",
-        "ffmpeg-python",
         "ctranslate2==4.4.0",
         "supabase",
         "fastapi",
