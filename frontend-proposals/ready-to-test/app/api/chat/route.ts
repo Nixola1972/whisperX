@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Initialize Gemini client
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Query using the uploaded file directly (not File Search Store)
     const result = await model.generateContent({
