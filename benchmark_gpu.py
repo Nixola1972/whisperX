@@ -20,6 +20,8 @@ whisperx_image = (
         "libavcodec-dev",
         "libavformat-dev",
         "libavutil-dev",
+        "libavdevice-dev",  # Required for PyAV 11.x
+        "libavfilter-dev",  # Required for PyAV 11.x
         "libswscale-dev",
         "libswresample-dev"
     )
